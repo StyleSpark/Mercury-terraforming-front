@@ -1,6 +1,6 @@
 
 
-# 🚀 Nuxt3 P-Team Frontend
+# 🚀 Nuxt3 Mercury terraforming front
 
 
 👉 [📘 Nuxt 공식 문서 바로가기](https://nuxt.com/docs/getting-started/introduction)
