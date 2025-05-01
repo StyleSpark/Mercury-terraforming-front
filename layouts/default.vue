@@ -20,6 +20,7 @@
         <v-btn text @click="navigateTo('/properties')">매물 리스트</v-btn>
         <v-btn text @click="navigateTo('/agents')">중개인 리스트</v-btn>
         <v-btn text @click="navigateTo('/proxy-services')">대리 서비스</v-btn>
+        <v-btn text @click="navigateTo('/inquiry')">게시판</v-btn>
       </div>
 
       <v-spacer />
@@ -32,7 +33,7 @@
       </div>
     </v-app-bar>
 
-    <v-main>
+    <v-main class="mt-2">
       <NuxtPage />
     </v-main>
   </v-app>
