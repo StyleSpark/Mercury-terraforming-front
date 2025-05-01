@@ -43,7 +43,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      naverMapClientId: process.env.PUBLIC_NAVER_MAP_CLIENT_ID
+      kakaoMapKey: process.env.KAKAO_MAP_KEY
     }
   },
 
