@@ -43,7 +43,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      kakaoMapKey: process.env.KAKAO_MAP_KEY
+      kakaoMapKey: process.env.KAKAO_MAP_KEY,
+      apiBase: process.env.NUXT_PUBLIC_API_BASE
     }
   },
 
