@@ -36,6 +36,10 @@ export default defineNuxtConfig({
         {
           src: `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.PUBLIC_NAVER_MAP_CLIENT_ID}`,
           defer: true
+        },
+        {
+          src: 'https://js.tosspayments.com/v2/standard',
+          defer: true
         }
       ]
     }

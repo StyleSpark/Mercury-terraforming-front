@@ -16,6 +16,7 @@
     "@tiptap/pm": "^2.11.9",
     "@tiptap/starter-kit": "^2.11.9",
     "@tiptap/vue-3": "^2.11.9",
+    "@tosspayments/tosspayments-sdk": "^2.3.4",
     "nuxt": "^3.16.1",
     "pinia": "^3.0.2",
     "sass": "^1.86.0",
