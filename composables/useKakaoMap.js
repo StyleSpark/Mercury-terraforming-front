@@ -1,24 +1,29 @@
-// composables/useKakaoMap.js
-export const useKakaoMap = async (elId, lat = 37.5665, lng = 126.9780, level = 3) => {
+let kakaoMapInitialized = false
+
+export const useKakaoMap = async (el, lat = 37.5665, lng = 126.978, level = 3) => {
   const config = useRuntimeConfig()
 
   if (process.client) {
-    if (!window.kakao) {
+    if (!kakaoMapInitialized) {
+      if (!window.kakao || !window.kakao.maps) {
+        await new Promise((resolve) => {
+          const script = document.createElement('script')
+          script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${config.public.kakaoMapKey}&autoload=false&libraries=services,clusterer`
+          script.onload = resolve
+          document.head.appendChild(script)
+        })
+      }
       await new Promise((resolve) => {
-        const script = document.createElement('script')
-        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${config.public.kakaoMapKey}&autoload=false`
-        script.onload = resolve
-        document.head.appendChild(script)
+        window.kakao.maps.load(resolve)
       })
+      kakaoMapInitialized = true
     }
 
-    window.kakao.maps.load(() => {
-      const container = document.getElementById(elId)
-      const options = {
-        center: new window.kakao.maps.LatLng(lat, lng),
-        level,
-      }
-      new window.kakao.maps.Map(container, options)
+    const map = new window.kakao.maps.Map(el, {
+      center: new window.kakao.maps.LatLng(lat, lng),
+      level,
     })
+
+    return map
   }
 }
