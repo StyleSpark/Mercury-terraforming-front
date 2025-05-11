@@ -1,6 +1,4 @@
 <script setup>
-import { useRoute } from 'vue-router'
-
 const route = useRoute()
 const planId = route.params.planId
 
@@ -10,39 +8,29 @@ const plans = {
   5: { name: '5회 등록권', price: 4800 },
   unlimited: { name: '10회 등록권', price: 9000 }
 }
-
+const router = useRouter();
 const selectedPlan = plans[planId]
+const { setup, requestPayment } = useTossPayments(selectedPlan)
 
-const tossPayments = TossPayments('test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm')
+const goBack = ()=>{
+  router.back();
+}
 
 onMounted(async () => {
-  const tossPayments = window.TossPayments('test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm')
-  const widgets = tossPayments.widgets({ customerKey: 'user_1234' })
-
-  await widgets.setAmount({ currency: 'KRW', value: selectedPlan.price })
-
-  await Promise.all([
-    widgets.renderPaymentMethods({ selector: '#payment-method' }),
-    widgets.renderAgreement({ selector: '#agreement' })
-  ])
+  await setup()
 
   document.getElementById('payment-button')?.addEventListener('click', async () => {
-    await widgets.requestPayment({
-      orderId: `ORDER-${Date.now()}`,
-      orderName: selectedPlan.name,
-      successUrl: window.location.origin + '/payment/success',
-      failUrl: window.location.origin + '/payment/fail',
-      customerEmail: 'test@example.com',
-      customerName: '홍길동',
-      customerMobilePhone: '01012345678'
-    })
+    await requestPayment()
   })
 })
-
 </script>
+
 
 <template>
   <v-container class="py-8">
+    <v-btn icon @click="goBack" class="mb-4">
+      <v-icon>mdi-arrow-left</v-icon>
+    </v-btn>
     <h2 class="text-h5 font-weight-bold mb-4">{{ selectedPlan?.name }} 결제</h2>
     <p class="text-body-1 mb-6">가격: {{ selectedPlan?.price.toLocaleString() }}원</p>
 

@@ -74,7 +74,7 @@ const removeTag = (tag) => {
         :rules="[v => !!v || '제목은 필수입니다.']"
         variant="outlined"
         class="mb-4"
-        density="comfortable"
+        density="compact"
         clearable
       />
 
@@ -83,7 +83,7 @@ const removeTag = (tag) => {
         :items="['전세', '월세', '단기']"
         label="거래 형태"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         class="mb-4"
       />
 
@@ -93,7 +93,7 @@ const removeTag = (tag) => {
         type="number"
         :rules="[v => !!v || '보증금은 필수입니다.']"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         class="mb-4"
         clearable
       />
@@ -104,7 +104,7 @@ const removeTag = (tag) => {
         label="월세 (만원)"
         type="number"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         class="mb-4"
         clearable
       />
@@ -114,7 +114,7 @@ const removeTag = (tag) => {
         label="관리비 (만원)"
         type="number"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         class="mb-4"
         clearable
       />
@@ -124,7 +124,7 @@ const removeTag = (tag) => {
         :items="['오피스텔', '원룸', '투룸', '아파트', '주택']"
         label="건물 유형"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         class="mb-4"
         clearable
       />
@@ -135,7 +135,7 @@ const removeTag = (tag) => {
           label="주소"
           disabled
           variant="outlined"
-          density="comfortable"
+          density="compact"
           style="flex: 1;"
         />
         <v-btn @click="openPostcode" height="35" color="primary" variant="flat">
@@ -147,7 +147,7 @@ const removeTag = (tag) => {
         v-model="detailAddress"
         label="상세 주소"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         class="mb-4"
         clearable
       />
@@ -157,7 +157,7 @@ const removeTag = (tag) => {
         label="상세 설명"
         variant="outlined"
         rows="4"
-        density="comfortable"
+        density="compact"
         auto-grow
         class="mb-4"
       />
@@ -177,7 +177,7 @@ const removeTag = (tag) => {
                 v-model="options"
                 :label="item.label"
                 :value="item.value"
-                density="comfortable"
+                density="compact"
                 hide-details
               />
             </v-col>
@@ -192,7 +192,7 @@ const removeTag = (tag) => {
           placeholder="태그를 입력 후 Enter"
           @keyup.enter="addTag"
           variant="outlined"
-          density="comfortable"
+          density="compact"
           clearable
         />
         <div class="d-flex flex-wrap mt-2">
@@ -216,7 +216,7 @@ const removeTag = (tag) => {
         variant="outlined"
         multiple
         show-size
-        density="comfortable"
+        density="compact"
         accept="image/*"
         class="mb-6"
       />
@@ -226,7 +226,7 @@ const removeTag = (tag) => {
         variant="outlined"
         multiple
         show-size
-        density="comfortable"
+        density="compact"
         accept="image/*"
         class="mb-6"
       />
