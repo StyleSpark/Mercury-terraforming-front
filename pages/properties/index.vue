@@ -2,93 +2,102 @@
   나중에 여기 utils로 빼야하는 함수 정리해야하고 불필요한 코드로직 정리해야함
   -->
 <script setup>
-const selectedItem = ref(null)
-const selectedDate = ref(null)
-const selectedTime = ref(null)
-const properties = ref([])
-const detailMap = ref(null)
-const defaultMap = ref(null)
-
+const selectedItem = ref(null);
+const selectedDate = ref(null);
+const selectedTime = ref(null);
+const properties = ref([]);
+const detailMap = ref(null);
+const defaultMap = ref(null);
+const reservationTimes = ref([]);
 // db에서?
 const plan = {
-  name: '방문 예약 예치금',
+  name: "방문 예약 예치금",
   price: 15000,
-}
+};
 
-const { setup, requestPayment } = useTossPayments(plan)
+const { setup, requestPayment } = useTossPayments(plan);
 
 //시간은 db에서 가져오도록 해야할까?
-const timeOptions = [
-  '오전 9:00', '오전 9:30', '오전 10:00', '오전 10:30',
-  '오전 11:00', '오전 11:30', '오후 12:00', '오후 1:00',
-  '오후 2:00', '오후 3:00', '오후 4:00', '오후 5:00', '오후 6:00',
-]
+const rawTimeOptions = ref([
+  { label: "오전 9:00", value: "09:00" },
+  { label: "오전 9:30", value: "09:30" },
+  { label: "오전 10:00", value: "10:00" },
+  { label: "오전 10:30", value: "10:30" },
+  { label: "오전 11:00", value: "11:00" },
+  { label: "오전 11:30", value: "11:30" },
+  { label: "오후 12:00", value: "12:00" },
+  { label: "오후 1:00", value: "13:00" },
+  { label: "오후 2:00", value: "14:00" },
+  { label: "오후 3:00", value: "15:00" },
+  { label: "오후 4:00", value: "16:00" },
+  { label: "오후 5:00", value: "17:00" },
+  { label: "오후 6:00", value: "18:00" },
+]);
 
 function parseKoreanTimeTo24Hour(timeStr) {
-  const [period, time] = timeStr.split(' ')
-  let [hour, minute] = time.split(':').map(Number)
+  const [period, time] = timeStr.split(" ");
+  let [hour, minute] = time.split(":").map(Number);
 
-  if (period === '오후' && hour !== 12) hour += 12
-  if (period === '오전' && hour === 12) hour = 0
+  if (period === "오후" && hour !== 12) hour += 12;
+  if (period === "오전" && hour === 12) hour = 0;
 
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function formatDateToKorean(date) {
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  }).format(date)
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(date);
 }
 
 function formatDateToYYYYMMDD(date) {
-  const d = new Date(date)
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function toLocalISOString(date) {
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+function convertToLocalTimeString(timeStr) {
+  // "09:30" → "09:30:00"
+  return `${timeStr}:00`;
 }
-const showReservation = ref(false)
+const showReservation = ref(false);
 //예약 하기 로직
 const submitReservation = async () => {
   if (!selectedDate.value || !selectedTime.value) return;
 
-  const formattedDate = formatDateToYYYYMMDD(selectedDate.value);
-  const time24 = parseKoreanTimeTo24Hour(selectedTime.value);
-  const date = new Date(`${formattedDate}T${time24}:00`);
+  const formattedDate = formatDateToYYYYMMDD(selectedDate.value); // 날짜 추출
 
   showReservation.value = true;
   await nextTick();
   await setup();
-
   const tempRequest = {
     propertyId: selectedItem.value.id,
-    userId: 1, 
-    time: toLocalISOString(date), 
+    userId: 1,
+    reservedTime: convertToLocalTimeString(selectedTime.value),
+    reservedDate: formattedDate,
     info: plan.name,
     deposit: plan.price,
     status: "결제중",
   };
 
-  const response = await useApi('/payments/temp', {
-    method: 'POST',
+  const response = await useApi("/payments/temp", {
+    method: "POST",
     body: tempRequest,
   });
 
   const orderId = response.data.orderId;
 
-  document.getElementById('payment-button')?.addEventListener('click', async () => {
-    await requestPayment(orderId);
-  });
+  document
+    .getElementById("payment-button")
+    ?.addEventListener("click", async () => {
+      await requestPayment(orderId);
+    });
 };
-
 
 const selectItem = async (item) => {
   selectedItem.value = null;
@@ -96,104 +105,143 @@ const selectItem = async (item) => {
   selectedDate.value = null;
   selectedTime.value = null;
 
-  const response = await useApi(`/properties/${item.id}`)
-  selectedItem.value = response.data
-  await nextTick()
-  drawDetailMap(selectedItem.value)
-}
+  const response = await useApi(`/properties/${item.id}`);
+  selectedItem.value = response.data;
+  await nextTick();
+  drawDetailMap(selectedItem.value);
+};
 
 function drawDetailMap(property) {
-  if (!detailMap.value || !property) return
-  const { latitude, longitude } = property
-  const position = new kakao.maps.LatLng(latitude, longitude)
+  if (!detailMap.value || !property) return;
+  const { latitude, longitude } = property;
+  const position = new kakao.maps.LatLng(latitude, longitude);
 
   const map = new kakao.maps.Map(detailMap.value, {
     center: position,
     level: 3,
-  })
+  });
 
   new kakao.maps.Marker({
     map,
     position,
-  })
+  });
 }
 
-function drawListMap(propertyList) {
-  if (!defaultMap.value || !propertyList?.length) return
+async function drawListMap(propertyList) {
+  if (!defaultMap.value || !propertyList?.length) return;
 
-  const map = new kakao.maps.Map(defaultMap.value, {
-    center: new kakao.maps.LatLng(37.5665, 126.978), // 후에 사용자 위치로 변경해야함
-    level: 5,
-  })
+  const map = await useKakaoMap(defaultMap.value, 37.5665, 126.978, 5);
+  if (!map) {
+    console.error('지도 초기화 실패');
+    return;
+  }
 
-  const bounds = new kakao.maps.LatLngBounds()
+  const bounds = new window.kakao.maps.LatLngBounds();
 
   propertyList.forEach((item) => {
-    const { latitude, longitude } = item
-    if (!latitude || !longitude) return
+    const { latitude, longitude } = item;
+    if (!latitude || !longitude) return;
 
-    const position = new kakao.maps.LatLng(latitude, longitude)
-    new kakao.maps.Marker({ map, position })
-    bounds.extend(position)
-  })
+    const position = new window.kakao.maps.LatLng(latitude, longitude);
+    new window.kakao.maps.Marker({ map, position });
+    bounds.extend(position);
+  });
 
-  map.setBounds(bounds)
+  map.setBounds(bounds);
 }
 
 const isAllowedDate = (date) => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const target = new Date(date)
-  target.setHours(0, 0, 0, 0)
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
 
-  return target >= today
-}
+  return target >= today;
+};
 
+const reservedTimes = ref([]); //예약 시간들
+
+//날짜 값이 변경되면 백엔드에서 해당 날짜 값의 예약 시간들을 가져와야함
+watch(selectedDate, async (val) => {});
+
+// 현재 시간 기준으로
+// 과거 시간은 선택이 안되도록 하기 위한 함수
 const isTimeDisabled = (timeStr) => {
-  if (!selectedDate.value) return true
+  if (!selectedDate.value) return true;
 
-  const today = new Date()
-  const selected = new Date(selectedDate.value)
-  today.setHours(0, 0, 0, 0)
-  selected.setHours(0, 0, 0, 0)
+  const today = new Date();
+  const selected = new Date(selectedDate.value);
+  today.setHours(0, 0, 0, 0);
+  selected.setHours(0, 0, 0, 0);
 
-  // 오늘이 아닌 날은 모든 시간 허용
-  if (selected > today) return false
+  const time24 = parseKoreanTimeTo24Hour(timeStr); // "09:00"
 
-  // 오늘이라면 현재 시간 기준 이전 시간 비활성화
-  const now = new Date()
-  const parsedTime = parseKoreanTimeTo24Hour(timeStr)
-  const [hour, minute] = parsedTime.split(':').map(Number)
+  // 오늘 이전이면 전부 비활성화
+  if (selected < today) return true;
 
-  const selectedTime = new Date()
-  selectedTime.setHours(hour, minute, 0, 0)
+  // 오늘인 경우, 현재 시각 이전 시간은 비활성화
+  if (selected.getTime() === today.getTime()) {
+    const now = new Date();
+    const [hour, minute] = time24.split(":").map(Number);
+    const selectedTime = new Date();
+    selectedTime.setHours(hour, minute, 0, 0);
+    if (selectedTime <= now) return true;
+  }
+  // 예약된 시간과 일치하면 비활성화
+  return reservedTimes.value.includes(time24);
+};
 
-  return selectedTime <= now
-}
-
+//뒤로가기
 const goBack = async () => {
-  showReservation.value = false
-  selectedItem.value = null 
-  await nextTick()
-  drawListMap(properties.value)
-}
+  showReservation.value = false;
+  selectedItem.value = null;
+  await nextTick();
+  drawListMap(properties.value);
+};
 
 watch(selectedItem, async (val) => {
   if (!val) {
-    await nextTick()
-    drawListMap(properties.value)
+    await nextTick();
+    drawListMap(properties.value);
   }
-})
+});
+
+// 예약된 시간들
+const fetchAvailableTimes = async () => {
+  selectedTime.value = null;
+  // 날짜 포맷: YYYY-MM-DD
+  const formattedDate = formatDateToYYYYMMDD(selectedDate.value);
+  try {
+    const res = await useApi(`/reservations/times`, {
+      method: "GET",
+      params: {
+        propertyId: selectedItem.value.id,
+        reservedDate: formattedDate,
+      },
+    });
+    reservedTimes.value = (res.data || []).map((t) =>
+      t.reservedTime.slice(0, 5)
+    );
+  } catch (error) {
+    console.error("예약 시간 목록을 불러오는데 실패했습니다:", error);
+    reservedTimes.value = [];
+  }
+};
 
 onMounted(async () => {
-  await nextTick()
-  const response = await useApi('/properties')
-  properties.value = response.data
-  await nextTick()
-  drawListMap(properties.value)
-})
+  await nextTick();
+  const response = await useApi("/properties");
+  properties.value = response.data;
+  drawListMap(properties.value);
+});
 
+function itemProps(item) {
+  return {
+    title: item.label,
+    disabled: reservationTimes.value.includes(item.value), 
+  }
+}
 </script>
 
 <template>
@@ -221,7 +269,12 @@ onMounted(async () => {
         </v-col>
 
         <v-row dense>
-          <v-col cols="12" v-for="item in properties" :key="item.id" class="mb-4">
+          <v-col
+            cols="12"
+            v-for="item in properties"
+            :key="item.id"
+            class="mb-4"
+          >
             <v-card
               class="d-flex hover-card"
               @click="selectItem(item)"
@@ -358,11 +411,7 @@ onMounted(async () => {
                     </v-col>
 
                     <!-- Boolean 옵션 -->
-                    <v-col
-                      cols="3"
-                      sm="3"
-                      v-if="selectedItem.detail.lot"
-                    >
+                    <v-col cols="3" sm="3" v-if="selectedItem.detail.lot">
                       <v-icon color="#FF8339" size="16">mdi-parking</v-icon>
                       <div class="text-body-2">주차 가능</div>
                     </v-col>
@@ -403,7 +452,10 @@ onMounted(async () => {
                     추가 설명
                   </h3>
                   <v-row class="text-center">
-                    <div v-html="selectedItem.detail.content" class="px-3 text-left"></div>
+                    <div
+                      v-html="selectedItem.detail.content"
+                      class="px-3 text-left"
+                    ></div>
                   </v-row>
                 </v-col>
               </v-row>
@@ -422,6 +474,7 @@ onMounted(async () => {
                           v-model="selectedDate"
                           :model-value="selectedDate"
                           :allowed-dates="isAllowedDate"
+                          @update:modelValue="fetchAvailableTimes"
                           type="date"
                         />
                       </v-col>
@@ -431,15 +484,13 @@ onMounted(async () => {
                         </h4>
                         <div class="d-flex flex-wrap gap-2 mb-4">
                           <v-btn
-                            v-for="time in timeOptions"
-                            :key="time"
-                            class="ma-1"
-                            variant="outlined"
-                            :disabled="!selectedDate || isTimeDisabled(time)"
-                            :color="selectedTime === time ? 'deep-orange' : ''"
-                            @click="selectedTime = time"
+                            v-for="time in rawTimeOptions"
+                            :key="time.value"
+                            :disabled="isTimeDisabled(time.label)"
+                            @click="selectedTime = time.value"
+                            :color="selectedTime === time.value ? 'deep-orange' : 'grey lighten-1'"
                           >
-                            {{ time }}
+                            {{ time.label }}
                           </v-btn>
                         </div>
                       </v-col>
@@ -505,5 +556,4 @@ onMounted(async () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: box-shadow 0.3s ease;
 }
-
 </style>
