@@ -2,11 +2,11 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
   css: ['vuetify/styles','~/assets/css/main.css',],
-
+  ssr: false,
   devtools: {
     enabled: false
   },
-
+ modules: ['@pinia/nuxt'],
   build: {
     transpile: ['vuetify'],
   },
@@ -34,6 +34,11 @@ export default defineNuxtConfig({
       ],
       script: [
         {
+        src: 'https://accounts.google.com/gsi/client',
+        async: true,
+        defer: true,
+        },
+        {
           src: `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.PUBLIC_NAVER_MAP_CLIENT_ID}`,
           defer: true
         },
@@ -48,7 +53,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       kakaoMapKey: process.env.KAKAO_MAP_KEY,
-      apiBase: process.env.NUXT_PUBLIC_API_BASE
+      apiBase: process.env.NUXT_PUBLIC_API_BASE,
+      googleClientId: process.env.GOOGLE_CLIENT_ID,
+      naverClientId: process.env.NAVER_CLIENT_ID
     }
   },
 
