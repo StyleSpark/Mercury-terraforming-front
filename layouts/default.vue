@@ -1,19 +1,9 @@
 <template>
   <v-app>
     <v-app-bar class="py-1 px-5" app flat style="background-color: #ffb328">
-      <!-- 왼쪽: 로고 + 메인 메뉴 -->
       <div class="d-flex align-center">
-        <v-toolbar-title
-          class="font-weight-bold text-primary cursor-pointer mr-4"
-          @click="goHome"
-        >
-          <img
-            src="/images/logo.png"
-            alt="로고"
-            height="32"
-            width="50"
-            class="mr-2"
-          />
+        <v-toolbar-title class="font-weight-bold text-primary cursor-pointer mr-4" @click="goHome">
+          <img src="/images/logo.png" alt="로고" height="32" width="50" class="mr-2" />
         </v-toolbar-title>
 
         <v-btn text @click="navigateTo('/')" :class="{ active: route.path === '/' }">홈</v-btn>
@@ -26,9 +16,10 @@
 
       <v-spacer />
 
-      <!-- 오른쪽 버튼들 -->
       <div class="d-flex align-center">
+        <!-- 로그인 안 했을 때만 로그인 버튼 보이기 -->
         <v-btn
+          v-if="!auth.isLoggedIn"
           class="pe-2 me-2"
           prepend-icon="mdi-login"
           variant="flat"
@@ -36,12 +27,12 @@
         >
           <div class="text-none font-weight-regular">로그인</div>
 
-          <v-dialog activator="parent" max-width="500">
-            <template v-slot:default="{ isActive }">
+          <v-dialog activator="parent" v-model="loginDialog" max-width="500">
+            <template v-slot:default>
               <v-card rounded="lg">
                 <v-card-title class="d-flex justify-space-between align-center">
                   <div class="text-h5 text-medium-emphasis ps-2">로그인</div>
-                  <v-btn icon="mdi-close" variant="text" @click="isActive.value = false" />
+                  <v-btn icon="mdi-close" variant="text" @click="loginDialog = false" />
                 </v-card-title>
 
                 <v-divider class="mb-4" />
@@ -66,10 +57,13 @@
                     />
                     <v-btn size="large" class="w-100 mt-2" variant="outlined">로그인</v-btn>
                   </v-form>
+
                   <v-divider class="my-3" />
+
                   <div class="w-100 text-center">
                     <v-btn size="large" class="w-100 mt-2" variant="outlined" @click="navigateTo('/signup')">회원가입</v-btn>
-                    <v-btn size="large" class="w-100 mt-2" variant="outlined" @click="socialLogin()">소셜 로그인</v-btn>
+                    <GoogleLoginButton @success="onLoginSuccess" />
+                    <NaverLoginButton />
                   </div>
                 </v-card-text>
               </v-card>
@@ -83,6 +77,7 @@
         <v-btn class="me-2 text-none" color="#2773FF" prepend-icon="mdi-home-plus" variant="flat" @click="navigateTo('/register')">
           매물 등록
         </v-btn>
+        <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#FF3B3B"  prepend-icon="mdi-logout" variant="flat"  @click="logout">로그아웃</v-btn>
       </div>
     </v-app-bar>
 
@@ -93,9 +88,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 
+const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -103,19 +97,30 @@ const email = ref('')
 const password = ref('')
 const valid = ref(false)
 const formRef = ref()
+const loginDialog = ref(false)
 
 const required = (v) => !!v || '필수 입력값입니다.'
 
+//이동
 const navigateTo = (path) => {
   router.push(path)
 }
 
+//홈
 const goHome = () => {
   router.push('/')
 }
 
-const socialLogin = () => {
-  // 소셜 로그인 로직
+// 록그인 성공
+const onLoginSuccess = () => {
+  loginDialog.value = false
+}
+
+//로그아웃
+const logout = () => {
+  auth.logout()
+  loginDialog.value = false
+  router.push('/') // 홈으로 이동하거나 원하는 경로로
 }
 </script>
 
