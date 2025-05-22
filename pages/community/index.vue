@@ -1,38 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue'
-
 const page = ref(1)
 const searchKeyword = ref('')
 const sortOption = ref('latest')
 
-const items = [
-  {
-    id: 1,
-    title: '아프리카 코끼리는 정말 커요!',
-    author: '관리자',
-    date: '2024-05-01',
-    views: 122,
-  },
-  {
-    id: 2,
-    title: '사바나의 이야기',
-    author: '홍길동',
-    date: '2024-04-30',
-    views: 87,
-  },
-  {
-    id: 3,
-    title: '동물 다큐멘터리 추천 좀요',
-    author: '김코딩',
-    date: '2024-04-29',
-    views: 45,
-  },
-]
+const posts = ref([]);
 
-const perPage = 5
+const perPage = 10
 
 const filteredItems = computed(() => {
-  let result = [...items]
+  let result = [...posts.value];
 
   if (searchKeyword.value.trim()) {
     const keyword = searchKeyword.value.toLowerCase()
@@ -55,6 +31,12 @@ const filteredItems = computed(() => {
 const paginatedItems = computed(() => {
   const start = (page.value - 1) * perPage
   return filteredItems.value.slice(start, start + perPage)
+})
+
+onMounted(async ()=>{
+const response = await useApi("/community");  
+posts.value=response.data.communities;
+
 })
 </script>
 

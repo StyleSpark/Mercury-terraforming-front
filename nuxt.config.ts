@@ -19,7 +19,9 @@ export default defineNuxtConfig({
       tailwindcss(),
     ],
   },
-
+ plugins: [
+    '~/plugins/init-auth.client.ts'
+  ],
   app: {
     head: {
       link: [

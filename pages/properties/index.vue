@@ -245,7 +245,7 @@ function itemProps(item) {
 </script>
 
 <template>
-  <v-container fluid class="pa-0 overflow-x-hidden">
+  <v-container fluid  class="pa-0 overflow-x-hidden overflow-y-hidden">
     <v-row no-gutters>
       <!-- 왼쪽 매물 리스트 -->
       <v-col
@@ -373,8 +373,14 @@ function itemProps(item) {
                   <p class="text-body-1">{{ selectedItem.detail.content }}</p>
                 </v-col>
               </v-row>
-
-              <v-row class="mb-8" align="start">
+              <v-row>
+                <v-col class="mx-auto text-center">
+                  <v-btn class="mr-2" color="info" variant="outlined">1:1 문의하기</v-btn>
+                  <v-btn class="mr-2" color="warning" variant="outlined">즐겨찾기</v-btn>
+                  <v-btn color="danger" variant="outlined">신고하기</v-btn>
+                </v-col>
+              </v-row>
+              <v-row class="mb-2" align="start">
                 <!-- 옵션 -->
                 <v-col cols="12" md="6">
                   <h3 class="text-subtitle-1 font-weight-bold mb-4 pl-5">
@@ -471,6 +477,7 @@ function itemProps(item) {
                       <v-col>
                         <v-date-picker
                           color="deep-orange"
+                          class="mb-0"
                           v-model="selectedDate"
                           :model-value="selectedDate"
                           :allowed-dates="isAllowedDate"
@@ -555,5 +562,8 @@ function itemProps(item) {
 .hover-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: box-shadow 0.3s ease;
+}
+div .v-picker-title{
+  margin-bottom:0;
 }
 </style>

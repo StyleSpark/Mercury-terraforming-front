@@ -55,7 +55,7 @@
                       variant="outlined"
                       density="compact"
                     />
-                    <v-btn size="large" class="w-100 mt-2" variant="outlined">로그인</v-btn>
+                    <v-btn size="large" class="w-100 mt-2" variant="outlined" @click="handleLogin">로그인</v-btn>
                   </v-form>
 
                   <v-divider class="my-3" />
@@ -71,17 +71,17 @@
           </v-dialog>
         </v-btn>
 
-        <v-btn class="me-2 text-none" color="#2773FF" prepend-icon="mdi-credit-card-outline" variant="flat" @click="navigateTo('/purchase')">
+        <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#2773FF" prepend-icon="mdi-credit-card-outline" variant="flat" @click="navigateTo('/purchase')">
           등록권 구매
         </v-btn>
-        <v-btn class="me-2 text-none" color="#2773FF" prepend-icon="mdi-home-plus" variant="flat" @click="navigateTo('/register')">
+        <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#2773FF" prepend-icon="mdi-home-plus" variant="flat" @click="navigateTo('/register')">
           매물 등록
         </v-btn>
         <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#FF3B3B"  prepend-icon="mdi-logout" variant="flat"  @click="logout">로그아웃</v-btn>
       </div>
     </v-app-bar>
 
-    <v-main class="mt-2">
+    <v-main>
       <NuxtPage />
     </v-main>
   </v-app>
@@ -100,14 +100,16 @@ const formRef = ref()
 const loginDialog = ref(false)
 
 const required = (v) => !!v || '필수 입력값입니다.'
-
 //이동
 const navigateTo = (path) => {
-  router.push(path)
+  loginDialog.value = false
+  router.push(path);
+
 }
 
 //홈
 const goHome = () => {
+  loginDialog.value = false
   router.push('/')
 }
 
@@ -115,6 +117,29 @@ const goHome = () => {
 const onLoginSuccess = () => {
   loginDialog.value = false
 }
+
+//로그인
+const handleLogin = async () => {
+  if (!valid.value) return
+
+  const response = await useApi("/auth/login", {
+    method: "POST",
+    body: {
+      email: email.value,
+      password: password.value
+    }
+  })
+
+  if (response?.accessToken) {
+    localStorage.setItem("access_token", response.accessToken);
+    auth.setToken(response.accessToken);
+    auth.setUser(response.user);
+    loginDialog.value = false
+  } else {
+    alert("로그인 실패: 이메일 또는 비밀번호가 올바르지 않습니다.")
+  }
+}
+
 
 //로그아웃
 const logout = () => {

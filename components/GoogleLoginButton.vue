@@ -14,11 +14,11 @@ const loginCallback = async (response) => {
         token,
       },
     });
-
-    debugger;
+    
     localStorage.setItem("access_token", result.accessToken);
     authStore.setToken(result.accessToken);
     authStore.setUser(result.user);
+
     alert("로그인 성공");
   } catch (err) {
     console.error("로그인 실패:", err);
@@ -45,5 +45,5 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="google-login-btn" class="w-100" />
+  <div id="google-login-btn" class="w-100 mt-3 mb-3 ml-5" />
 </template>

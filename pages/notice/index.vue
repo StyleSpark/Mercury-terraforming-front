@@ -4,7 +4,7 @@ const notices = ref([])
 onMounted(async () => {
   try {
     const response = await useApi('/notices')
-    debugger;
+    
     notices.value = response.data.notices;
   } catch (err) {
     console.error('API 실패:', err)

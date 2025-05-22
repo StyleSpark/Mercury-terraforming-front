@@ -10,7 +10,7 @@ useHead({
 </script>
 
 <template>
-  <v-app>
-    <NuxtLayout />
+  <v-app >
+    <NuxtLayout/>
   </v-app>
 </template>

@@ -5,7 +5,6 @@ onMounted(async () => {
   const { paymentKey, orderId, amount } = route.query
   
   try {
-    debugger;
     const response = await useApi('/payments/reservationConfirm', {
       method: 'POST',
       body: {
