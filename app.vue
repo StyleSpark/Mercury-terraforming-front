@@ -3,7 +3,7 @@ const config = useRuntimeConfig()
 useHead({
   script: [
     {
-      src: `//dapi.kakao.com/v2/maps/sdk.js?autoload=true&appkey=${config.public.kakaoMapKey}&libraries=services`,
+      src: `//dapi.kakao.com/v2/maps/sdk.js?autoload=true&appkey=${config.public.kakaoMapKey}&autoload=false&libraries=services`,
     },
   ],
 })
