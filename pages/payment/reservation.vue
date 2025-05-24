@@ -22,13 +22,8 @@ onMounted(async () => {
 
   document.getElementById('payment-button')?.addEventListener('click', async () => {
     await widgets.requestPayment({
-      orderId: `RESERVATION-${Date.now()}`,
+      orderId: `RESERVATION`,
       orderName: '방문 예약 예치금',
-      successUrl: window.location.origin + '/payment/success',
-      failUrl: window.location.origin + '/payment/fail',
-      customerEmail: 'test@example.com',
-      customerName: '홍길동',
-      customerMobilePhone: '01012345678'
     })
   })
 })

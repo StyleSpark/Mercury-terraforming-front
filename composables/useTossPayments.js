@@ -2,6 +2,7 @@
 export function useTossPayments(plan) {
   let widgets = null
 
+  // setup 함수
   const setup = async () => {
     if (typeof window === 'undefined') return
 
@@ -16,7 +17,7 @@ export function useTossPayments(plan) {
 
     const tossPayments = window.TossPayments('test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm')
     widgets = tossPayments.widgets({ customerKey: 'user_1234' })
-
+    
     await widgets.setAmount({ currency: 'KRW', value: plan.price })
 
     await Promise.all([
@@ -25,17 +26,14 @@ export function useTossPayments(plan) {
     ])
   }
 
-  const requestPayment = async (orderId) => {
+  // 결제 요청 함수
+  const requestPayment = async (orderId,type) => {
     if (!widgets) throw new Error('TossPayments not initialized. Call setup() first.')
-
       await widgets.requestPayment({
         orderId,
         orderName: plan.name,
-        successUrl: `${window.location.origin}/payment/success`,
-        failUrl: `${window.location.origin}/payment/fail`,
-        customerEmail: 'test@example.com',
-        customerName: '홍길동',
-        customerMobilePhone: '01012345678',
+        successUrl: `${window.location.origin}/payment/success?type=${type}`,
+        failUrl: `${window.location.origin}/payment/fail?type=${type}`,
       })
   }
 

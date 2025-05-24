@@ -1,35 +1,15 @@
 <script setup>
-import { useRouter } from 'vue-router'
-
 const router = useRouter()
 
-const plans = [
-  {
-    id: 1,
-    name: '1회 등록권',
-    description: '한 번의 매물 등록이 가능합니다.',
-    price: '₩1,000',
-    recommended: false,
-  },
-  {
-    id: 5,
-    name: '5회 등록권',
-    description: '5개의 매물을 등록할 수 있습니다.',
-    price: '₩4,800',
-    recommended: true,
-  },
-  {
-    id: 'unlimited',
-    name: '10회 등록권',
-    description: '10개의 매물을 등록할 수 있습니다.',
-    price: '₩9,000',
-    recommended: false,
-  },
-]
+const plans = ref([])
 
 const goToCheckout = (planId) => {
   router.push(`/purchase/${planId}`)
 }
+onMounted(async()=>{
+  const response = await useApi('/payments/tickets');
+  plans.value=response.data;
+})
 </script>
 
 <template>
@@ -73,7 +53,7 @@ const goToCheckout = (planId) => {
 
           <!-- 가격 및 버튼 -->
           <div class="mt-auto">
-            <p class="text-h6 font-weight-bold mb-2">{{ plan.price }}</p>
+            <p class="text-h6 font-weight-bold mb-2">{{ plan.price.toLocaleString() +"원" }}</p>
             <v-btn
               block
               color="primary"

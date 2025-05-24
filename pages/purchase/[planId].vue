@@ -1,26 +1,25 @@
 <script setup>
+
 const route = useRoute()
-const planId = route.params.planId
+const ticketId =route.params.planId 
+const plan = ref({});
+const response = await useApi(`/payments/tickets?ticketId=${ticketId}`);
+plan.value=response.data[0];
 
-// 등록권 정보 매핑
-const plans = {
-  1: { name: '1회 등록권', price: 1000 },
-  5: { name: '5회 등록권', price: 4800 },
-  unlimited: { name: '10회 등록권', price: 9000 }
-}
-const router = useRouter();
-const selectedPlan = plans[planId]
-const { setup, requestPayment } = useTossPayments(selectedPlan)
+const router = useRouter()
+const { setup, requestPayment } = useTossPayments(plan.value);
 
-const goBack = ()=>{
-  router.back();
+const goBack = () => {
+  router.back()
 }
 
 onMounted(async () => {
+  //티켓 데이터
+
   await setup()
 
-  document.getElementById('payment-button')?.addEventListener('click', async () => {
-    await requestPayment()
+  document.getElementById('payment-button')?.addEventListener('click', async (plan) => {
+    await requestPayment(`ORDER-${Date.now()}`, plan.id)
   })
 })
 </script>
@@ -31,8 +30,8 @@ onMounted(async () => {
     <v-btn icon @click="goBack" class="mb-4">
       <v-icon>mdi-arrow-left</v-icon>
     </v-btn>
-    <h2 class="text-h5 font-weight-bold mb-4">{{ selectedPlan?.name }} 결제</h2>
-    <p class="text-body-1 mb-6">가격: {{ selectedPlan?.price.toLocaleString() }}원</p>
+    <h2 class="text-h5 font-weight-bold mb-4">{{ plan?.name }} 결제</h2>
+    <p class="text-body-1 mb-6">가격: {{ plan?.price.toLocaleString()}}원</p>
 
     <div id="payment-method" class="mb-4"></div>
     <div id="agreement" class="mb-4"></div>

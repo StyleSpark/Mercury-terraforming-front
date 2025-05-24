@@ -88,6 +88,8 @@
 </template>
 
 <script setup>
+import { useLoginDialogStore } from '@/stores/loginDialog'
+const loginDialogStore = useLoginDialogStore()
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -97,14 +99,19 @@ const email = ref('')
 const password = ref('')
 const valid = ref(false)
 const formRef = ref()
-const loginDialog = ref(false)
 
 const required = (v) => !!v || '필수 입력값입니다.'
+
+// ⭐ loginDialog 상태를 pinia로 연동
+const loginDialog = computed({
+  get: () => loginDialogStore.isOpen,
+  set: (val) => val ? loginDialogStore.open() : loginDialogStore.close()
+})
+
 //이동
 const navigateTo = (path) => {
   loginDialog.value = false
-  router.push(path);
-
+  router.push(path)
 }
 
 //홈
@@ -113,12 +120,12 @@ const goHome = () => {
   router.push('/')
 }
 
-// 록그인 성공
+// 로그인 성공 처리
 const onLoginSuccess = () => {
   loginDialog.value = false
 }
 
-//로그인
+// 로그인 시도
 const handleLogin = async () => {
   if (!valid.value) return
 
@@ -131,23 +138,32 @@ const handleLogin = async () => {
   })
 
   if (response?.accessToken) {
-    localStorage.setItem("access_token", response.accessToken);
-    auth.setToken(response.accessToken);
-    auth.setUser(response.user);
+    localStorage.setItem("access_token", response.accessToken)
+    auth.setToken(response.accessToken)
+    auth.setUser(response.user)
     loginDialog.value = false
   } else {
     alert("로그인 실패: 이메일 또는 비밀번호가 올바르지 않습니다.")
   }
 }
 
-
-//로그아웃
+// 로그아웃
 const logout = () => {
   auth.logout()
   loginDialog.value = false
-  router.push('/') // 홈으로 이동하거나 원하는 경로로
+  router.push('/')
 }
+
+watch(() => loginDialogStore.isOpen, (open) => {
+  if (open) {
+    email.value = ''
+    password.value = ''
+    valid.value = false
+    formRef.value?.resetValidation?.()
+  }
+})
 </script>
+
 
 <style scoped>
 .cursor-pointer {

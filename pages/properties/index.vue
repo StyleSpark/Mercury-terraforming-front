@@ -2,13 +2,16 @@
   나중에 여기 utils로 빼야하는 함수 정리해야하고 불필요한 코드로직 정리해야함
   -->
 <script setup>
+import { useLoginDialogStore } from '@/stores/loginDialog'
+
+const loginDialogStore = useLoginDialogStore()
+const auth = useAuthStore()
 const selectedItem = ref(null);
 const selectedDate = ref(null);
 const selectedTime = ref(null);
 const properties = ref([]);
 const detailMap = ref(null);
 const defaultMap = ref(null);
-const reservationTimes = ref([]);
 // db에서?
 const plan = {
   name: "방문 예약 예치금",
@@ -95,12 +98,11 @@ const submitReservation = async () => {
   document
     .getElementById("payment-button")
     ?.addEventListener("click", async () => {
-      await requestPayment(orderId);
+      await requestPayment(orderId,'reservation');
     });
 };
 
 const selectItem = async (item) => {
-  selectedItem.value = null;
   showReservation.value = false;
   selectedDate.value = null;
   selectedTime.value = null;
@@ -230,18 +232,60 @@ const fetchAvailableTimes = async () => {
 };
 
 onMounted(async () => {
+  
   await nextTick();
   const response = await useApi("/properties");
   properties.value = response.data;
   drawListMap(properties.value);
 });
 
-function itemProps(item) {
-  return {
-    title: item.label,
-    disabled: reservationTimes.value.includes(item.value), 
+const isHovered = ref(false)
+const isFavorite = computed(() => selectedItem.value?.isFavorite ?? false)
+
+const toastMessage = ref('');
+const toastVisible = ref(false);
+
+function showToast(msg) {
+  toastMessage.value = msg
+  toastVisible.value = true
+}
+const toggleFavorite = async (item) => {
+  if (!auth.isLoggedIn) {
+    loginDialogStore.open()
+    return
+  }
+
+  const original = item.isFavorite
+  item.isFavorite = !item.isFavorite
+
+  try {
+    await useApi('/favorites', {
+      method: item.isFavorite ? 'POST' : 'DELETE',
+      body: { propertyId: item.id }
+    })
+
+    showToast(item.isFavorite ? '즐겨찾기 추가됨' : '즐겨찾기 삭제됨')
+
+    if (selectedItem.value?.id === item.id) {
+      selectedItem.value.isFavorite = item.isFavorite
+      selectedItem.value = { ...selectedItem.value }
+    }
+
+    const index = properties.value.findIndex(p => p.id === item.id)
+    if (index !== -1) {
+      properties.value[index].isFavorite = item.isFavorite
+      properties.value[index] = { ...properties.value[index] }
+    }
+
+  } catch (e) {
+    item.isFavorite = original
+    showToast('에러 발생')
   }
 }
+
+const showDialog = ref(false);
+
+
 </script>
 
 <template>
@@ -322,6 +366,17 @@ function itemProps(item) {
                   <span class="text-caption text-grey">{{
                     item.nickname
                   }}</span>
+                  <v-btn
+                    icon
+                    variant="text"
+                    class="favorite-icon"
+                    @mouseenter="isHovered = true"
+                    @mouseleave="isHovered = false"
+                    :color="item.isFavorite ? 'red' : 'grey'"
+                    @click.stop="toggleFavorite(item)"
+                  >
+                    <v-icon :color="isFavorite ? 'red' : (isHovered ? 'red' : 'red')">{{ item.isFavorite ? 'mdi-heart' : 'mdi-heart-outline' }}</v-icon>
+                  </v-btn>
                 </div>
               </div>
             </v-card>
@@ -376,8 +431,23 @@ function itemProps(item) {
               <v-row>
                 <v-col class="mx-auto text-center">
                   <v-btn class="mr-2" color="info" variant="outlined">1:1 문의하기</v-btn>
-                  <v-btn class="mr-2" color="warning" variant="outlined">즐겨찾기</v-btn>
-                  <v-btn color="danger" variant="outlined">신고하기</v-btn>
+                  <v-btn color="danger" variant="outlined" @click="showDialog = true">신고하기</v-btn>
+                  <v-btn
+                      icon
+                      class="favorite-btn"
+                      color="transparent"
+                      variant="outlined"
+                      @mouseenter="isHovered = true"
+                      @mouseleave="isHovered = false"
+                      @click="toggleFavorite(selectedItem)"
+                    >
+                      <v-icon
+                        :color="isFavorite ? 'red' : (isHovered ? 'red' : 'red')"
+                        transition="scale-transition"
+                      >
+                        {{ isFavorite || isHovered ? 'mdi-heart' : 'mdi-heart-outline' }}
+                      </v-icon>
+                    </v-btn>
                 </v-col>
               </v-row>
               <v-row class="mb-2" align="start">
@@ -556,6 +626,8 @@ function itemProps(item) {
       </v-col>
     </v-row>
   </v-container>
+  <ReportPopup v-model="showDialog" @submit="handleSubmit"></ReportPopup>
+  <Toast v-model="toastVisible" :message="toastMessage"  :duration="1000" />
 </template>
 
 <style scoped>
@@ -565,5 +637,12 @@ function itemProps(item) {
 }
 div .v-picker-title{
   margin-bottom:0;
+}
+.favorite-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
 }
 </style>
