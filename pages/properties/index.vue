@@ -325,6 +325,7 @@ const showDialog = ref(false);
               style="cursor: pointer; min-height: 120px"
               variant="outlined"
             >
+            
               <div style="width: 40%; height: 100%; display: flex">
                 <v-img
                   :src="item.thumbnailUrl"
@@ -342,6 +343,7 @@ const showDialog = ref(false);
                 class="d-flex flex-column justify-center pa-4"
                 style="width: 60%"
               >
+
                 <h3
                   class="text-subtitle-1 font-weight-bold mb-1"
                   style="
@@ -352,6 +354,22 @@ const showDialog = ref(false);
                 >
                   {{ item.title }}
                 </h3>
+                <v-row class="mb-2">
+                  <v-col cols="12">
+                    <div class="d-flex flex-wrap gap-2">
+                      <v-chip
+                        v-for="(tag, index) in item.tags"
+                        :key="index"
+                        color="deep-orange"
+                        text-color="white"
+                        variant="elevated"
+                        size="small"
+                      >
+                        #{{ tag.name }}
+                      </v-chip>
+                    </div>
+                  </v-col>
+                </v-row>
                 <p
                   class="text-body-2 font-weight-bold mb-1"
                   style="color: #ff8339"

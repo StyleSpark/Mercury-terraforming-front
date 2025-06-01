@@ -27,9 +27,12 @@ const proxyOptions = [
     <v-sheet
       height="420"
       class="d-flex align-center justify-center text-center position-relative rounded-0"
-      style="background-image: url('/images/main_background.avif'); background-size: cover; background-position: center;"
+      style="
+        background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('/images/main_background.avif');
+        background-size: cover;
+        background-position: center;
+      "
     >
-      <div class="overlay" />
       <div class="position-relative">
         <h1 class="text-h4 font-weight-bold mb-3 text-white">당신의 집, 당신의 방식으로</h1>
         <p class="text-subtitle-2 mb-5 text-white">직접 매물을 등록하고, 중개인을 찾고, 집을 대신 찾아드립니다.</p>
@@ -39,6 +42,7 @@ const proxyOptions = [
         </div>
       </div>
     </v-sheet>
+
 
     <!-- 서비스 소개 -->
     <v-container class="py-14 px-4">

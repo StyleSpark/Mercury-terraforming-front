@@ -1,5 +1,6 @@
 <template>
   <v-app>
+    <!-- 상단 네비게이션 바 -->
     <v-app-bar class="py-1 px-5" app flat style="background-color: #ffb328">
       <div class="d-flex align-center">
         <v-toolbar-title class="font-weight-bold text-primary cursor-pointer mr-4" @click="goHome">
@@ -9,15 +10,15 @@
         <v-btn text @click="navigateTo('/')" :class="{ active: route.path === '/' }">홈</v-btn>
         <v-btn text @click="navigateTo('/properties')" :class="{ active: route.path === '/properties' }">매물 리스트</v-btn>
         <v-btn text @click="navigateTo('/agents')" :class="{ active: route.path === '/agents' }">중개인 리스트</v-btn>
-        <v-btn text @click="navigateTo('/proxy-services')" :class="{ active: route.path === '/proxy-services' }">대리 서비스</v-btn>
-        <v-btn text @click="navigateTo('/inquiry')" :class="{ active: route.path === '/inquiry' }">문의사항</v-btn>
+        <!-- <v-btn text @click="navigateTo('/proxy-services')" :class="{ active: route.path === '/proxy-services' }">대리 서비스</v-btn> -->
         <v-btn text @click="navigateTo('/community')" :class="{ active: route.path === '/community' }">커뮤니티</v-btn>
       </div>
 
       <v-spacer />
 
+      <!-- 우측 로그인/유저 정보 -->
       <div class="d-flex align-center">
-        <!-- 로그인 안 했을 때만 로그인 버튼 보이기 -->
+        <!-- 로그인 버튼 -->
         <v-btn
           v-if="!auth.isLoggedIn"
           class="pe-2 me-2"
@@ -36,30 +37,14 @@
                 </v-card-title>
 
                 <v-divider class="mb-4" />
-
                 <v-card-text>
                   <v-form ref="formRef" v-model="valid">
-                    <v-text-field
-                      v-model="email"
-                      label="이메일"
-                      :rules="[required]"
-                      variant="outlined"
-                      class="mb-2"
-                      density="compact"
-                    />
-                    <v-text-field
-                      v-model="password"
-                      label="비밀번호"
-                      type="password"
-                      :rules="[required]"
-                      variant="outlined"
-                      density="compact"
-                    />
+                    <v-text-field v-model="email" label="이메일" :rules="[required]" variant="outlined" class="mb-2" density="compact" />
+                    <v-text-field v-model="password" label="비밀번호" type="password" :rules="[required]" variant="outlined" density="compact" />
                     <v-btn size="large" class="w-100 mt-2" variant="outlined" @click="handleLogin">로그인</v-btn>
                   </v-form>
 
                   <v-divider class="my-3" />
-
                   <div class="w-100 text-center">
                     <v-btn size="large" class="w-100 mt-2" variant="outlined" @click="navigateTo('/signup')">회원가입</v-btn>
                     <GoogleLoginButton @success="onLoginSuccess" />
@@ -71,16 +56,44 @@
           </v-dialog>
         </v-btn>
 
+        <!-- 유저 프로필 메뉴 -->
+        <v-menu v-if="auth.isLoggedIn" offset-y transition="scale-transition">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" variant="text" class="d-flex align-center" style="text-transform: none;">
+              <v-avatar size="32" class="me-2" color="secondary">
+                <template v-if="auth.user?.profileImage">
+                  <img :src="auth.user.profileImage" alt="프로필" />
+                </template>
+                <template v-else>
+                  <v-icon icon="mdi-account-circle" />
+                </template>
+              </v-avatar>
+              <span>{{ auth.user?.nickname || auth.user?.name || '사용자' }}</span>
+              <v-icon right>mdi-chevron-down</v-icon>
+            </v-btn>
+          </template>
+
+          <v-list>
+            <v-list-item @click="navigateTo('/mypage')">
+              <v-list-item-title>마이페이지</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="logout">
+              <v-list-item-title>로그아웃</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+
+        <!-- 추가 메뉴 버튼들 -->
         <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#2773FF" prepend-icon="mdi-credit-card-outline" variant="flat" @click="navigateTo('/purchase')">
           등록권 구매
         </v-btn>
         <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#2773FF" prepend-icon="mdi-home-plus" variant="flat" @click="navigateTo('/register')">
           매물 등록
         </v-btn>
-        <v-btn v-if="auth.isLoggedIn" class="me-2 text-none" color="#FF3B3B"  prepend-icon="mdi-logout" variant="flat"  @click="logout">로그아웃</v-btn>
       </div>
     </v-app-bar>
 
+    <!-- 페이지 본문 -->
     <v-main>
       <NuxtPage />
     </v-main>
@@ -102,30 +115,25 @@ const formRef = ref()
 
 const required = (v) => !!v || '필수 입력값입니다.'
 
-// ⭐ loginDialog 상태를 pinia로 연동
 const loginDialog = computed({
   get: () => loginDialogStore.isOpen,
   set: (val) => val ? loginDialogStore.open() : loginDialogStore.close()
 })
 
-//이동
 const navigateTo = (path) => {
   loginDialog.value = false
   router.push(path)
 }
 
-//홈
 const goHome = () => {
   loginDialog.value = false
   router.push('/')
 }
 
-// 로그인 성공 처리
 const onLoginSuccess = () => {
   loginDialog.value = false
 }
 
-// 로그인 시도
 const handleLogin = async () => {
   if (!valid.value) return
 
@@ -147,10 +155,9 @@ const handleLogin = async () => {
   }
 }
 
-// 로그아웃
 const logout = () => {
   auth.logout()
-  loginDialog.value = false
+  localStorage.removeItem("access_token")
   router.push('/')
 }
 
@@ -163,7 +170,6 @@ watch(() => loginDialogStore.isOpen, (open) => {
   }
 })
 </script>
-
 
 <style scoped>
 .cursor-pointer {

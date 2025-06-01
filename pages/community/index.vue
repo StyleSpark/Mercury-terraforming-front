@@ -34,7 +34,7 @@ const paginatedItems = computed(() => {
 })
 
 onMounted(async ()=>{
-const response = await useApi("/community");  
+const response = await useApi("/communities");  
 posts.value=response.data.communities;
 
 })

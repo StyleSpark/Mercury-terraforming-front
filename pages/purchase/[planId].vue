@@ -18,8 +18,8 @@ onMounted(async () => {
 
   await setup()
 
-  document.getElementById('payment-button')?.addEventListener('click', async (plan) => {
-    await requestPayment(`ORDER-${Date.now()}`, plan.id)
+  document.getElementById('payment-button')?.addEventListener('click', async () => {
+    await requestPayment(`ORDER-${Date.now()}`, plan.value.id)
   })
 })
 </script>

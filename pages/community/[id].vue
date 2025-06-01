@@ -1,7 +1,4 @@
 <script setup>
-import { useRoute, useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
-
 const route = useRoute()
 const router = useRouter()
 const postId = Number(route.params.id)
