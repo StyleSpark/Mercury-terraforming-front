@@ -14,21 +14,35 @@
           lg="3"
         >
           <v-card class="rounded-lg elevation-2" height="100%">
-            <v-img :src="p.thumbnailUrl" height="180" cover class="rounded-t-lg" />
+            <v-img
+              :src="p.thumbnailUrl"
+              height="180"
+              cover
+              class="rounded-t-lg"
+            />
             <v-card-text>
               <div class="text-subtitle-1 font-weight-bold">{{ p.title }}</div>
               <div class="text-body-2 text-grey">{{ p.address }}</div>
               <div class="mt-2 text-body-1 font-weight-bold">
-                {{ p.price || '가격 미정' }}만원
+                {{ p.price || "가격 미정" }}만원
               </div>
             </v-card-text>
             <v-card-actions class="px-4 pb-4 d-flex flex-wrap gap-2">
-              <v-btn size="small" color="primary" @click="editProperty(p)">수정</v-btn>
-              <v-btn size="small" color="error" @click="confirmDelete(p.id)">삭제</v-btn>
+              <v-btn size="small" color="primary" @click="editProperty(p)"
+                >수정</v-btn
+              >
+              <v-btn size="small" color="error" @click="confirmDelete(p.id)"
+                >삭제</v-btn
+              >
               <v-btn size="small" @click="toggleStatus(p)">
-                {{ p.status === 'ACTIVE' ? '활성화' : '거래완료' }}
+                {{ p.status === "ACTIVE" ? "활성화" : "거래완료" }}
               </v-btn>
-              <v-btn size="small" color="secondary" @click="openReservation(p.id)">예약 보기</v-btn>
+              <v-btn
+                size="small"
+                color="secondary"
+                @click="openReservation(p.id)"
+                >예약 보기</v-btn
+              >
             </v-card-actions>
           </v-card>
         </v-col>
@@ -51,64 +65,72 @@
           <v-card-text>삭제된 매물은 복구할 수 없습니다.</v-card-text>
           <v-card-actions class="justify-end">
             <v-btn variant="text" @click="isDialogOpen = false">취소</v-btn>
-            <v-btn color="error" variant="flat" @click="deleteProperty">삭제</v-btn>
+            <v-btn color="error" variant="flat" @click="deleteProperty"
+              >삭제</v-btn
+            >
           </v-card-actions>
         </v-card>
       </v-dialog>
     </v-container>
+    <Toast v-model="toastVisible" message="삭제 완료!" :duration="2000" />
   </MypageLayoutWrapper>
 </template>
 
 <script setup>
-const router = useRouter()
-const properties = ref([])
-
-const page = ref(1)
-const itemsPerPage = 4
-const totalPages = computed(() => Math.ceil(properties.value.length / itemsPerPage))
+const router = useRouter();
+const properties = ref([]);
+const toastVisible = ref(false);
+const page = ref(1);
+const itemsPerPage = 4;
+const totalPages = computed(() =>
+  Math.ceil(properties.value.length / itemsPerPage)
+);
 const paginatedProperties = computed(() => {
-  const start = (page.value - 1) * itemsPerPage
-  const end = start + itemsPerPage
-  return properties.value.slice(start, end)
-})
+  const start = (page.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return properties.value.slice(start, end);
+});
 
 // 삭제 Dialog 관련 상태
-const isDialogOpen = ref(false)
-const deleteTargetId = ref(null)
+const isDialogOpen = ref(false);
+const deleteTargetId = ref(null);
 
 const confirmDelete = (id) => {
-  deleteTargetId.value = id
-  isDialogOpen.value = true
-}
+  deleteTargetId.value = id;
+  isDialogOpen.value = true;
+};
 
 const deleteProperty = async () => {
   // 실제 삭제 API 호출
-  await useApi(`/my/properties/${deleteTargetId.value}`, {
-    method: 'DELETE'
-  })
+  await useApi(`/properties/${deleteTargetId.value}`, {
+    method: "DELETE",
+  });
 
   // 목록에서 제거
-  properties.value = properties.value.filter(p => p.id !== deleteTargetId.value)
+  properties.value = properties.value.filter(
+    (p) => p.id !== deleteTargetId.value
+  );
 
   // Dialog 닫기
-  isDialogOpen.value = false
-}
+  isDialogOpen.value = false;
+  toastVisible.value =true;
+};
 
 onMounted(async () => {
-  const res = await useApi('/auth/properties')
-  properties.value = res.data
-})
+  const res = await useApi("/auth/properties");
+  properties.value = res.data;
+});
 
 // 수정 페이지로 이동
 const editProperty = (p) => {
-  router.push(`/mypage/properties/edit/${p.id}`)
-}
+  router.push(`/mypage/properties/edit/${p.id}`);
+};
 
 const toggleStatus = (p) => {
   // 상태 토글 (ACTIVE ↔ COMPLETE)
-}
+};
 
 const openReservation = (id) => {
   // 예약 보기 로직
-}
+};
 </script>
