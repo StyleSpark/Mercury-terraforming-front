@@ -1,7 +1,5 @@
 <!-- components/BaseToast.vue -->
 <script setup>
-import { ref, watch } from 'vue'
-
 const show = defineModel()
 
 const props = defineProps({
@@ -12,7 +10,12 @@ const props = defineProps({
   duration: {
     type: Number,
     default: 1500
+  },
+  color:{
+    type: String,
+    default: 'success'
   }
+
 })
 
 const progress = ref(100)
@@ -38,7 +41,7 @@ watch(show, (val) => {
     <div class="toast-container">
       <v-alert
         v-if="show"
-        type="success"
+        :type="props.color"
         variant="elevated"
         class="toast-alert"
         @click="show = false"
@@ -61,7 +64,7 @@ watch(show, (val) => {
 <style scoped>
 .toast-container {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
   z-index: 9999;
 }
