@@ -26,7 +26,7 @@ const route = useRoute()
 const menu = [
   { label: '내 정보', path: '/mypage' },
   { label: '매물 관리', path: '/mypage/properties' },
-  { label: '대리 서비스 이용', path: '/mypage/proxy' },
+  { label: '문의 내역', path: '/mypage/inquiries' },
   { label: '회원 탈퇴', path: '/mypage/withdraw' },
 ]
 </script>
