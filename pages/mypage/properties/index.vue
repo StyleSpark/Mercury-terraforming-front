@@ -21,10 +21,14 @@
               class="rounded-t-lg"
             />
             <v-card-text>
+              <v-chip>{{p.propertyTypeId}}</v-chip>
               <div class="text-subtitle-1 font-weight-bold">{{ p.title }}</div>
               <div class="text-body-2 text-grey">{{ p.address }}</div>
-              <div class="mt-2 text-body-1 font-weight-bold">
-                {{ p.price || "가격 미정" }}만원
+              <div v-if="p.propertyTypeId != '전세'" class="mt-2 text-body-1 font-weight-bold">
+                {{ p.price }}만원
+              </div>
+              <div v-if="p.propertyTypeId == '전세'" class="mt-2 text-body-1 font-weight-bold">
+                보증: {{ p.deposit }}만원 / 관리비: {{ p.maintenanceFee }} 만원
               </div>
             </v-card-text>
             <v-card-actions class="px-4 pb-4 d-flex flex-wrap gap-2">

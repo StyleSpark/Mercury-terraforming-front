@@ -98,7 +98,7 @@ const submit = async () => {
     localStorage.setItem("access_token", response.accessToken);
     authStore.setToken(response.accessToken);
     authStore.setUser(response.user);
-    // ✅ 3. 메인 화면 또는 대시보드 이동
+    // 3. 메인 화면 또는 대시보드 이동
     router.push("/")
   } else {
     // 실패 시 알림 또는 예외 처리

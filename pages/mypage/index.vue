@@ -1,5 +1,5 @@
 <script setup>
-// ✅ 초기 유저 상태 저장
+// 초기 유저 상태 저장
 const auth = useAuthStore();
 
 const originalUser = reactive({ ...auth.user });
@@ -11,11 +11,21 @@ const form = ref(null);
 const password = ref("");
 const imageInput = ref(null);
 const uploadedImageFile = ref(null);
+const toastVisible = ref(false);
+const isNicknameChecked = ref(false);
+const message = ref(null);
+const color = ref(null);
 
 // 소셜 로그인 여부
 const isOauthUser = computed(() => {
   return auth.user.provider == null;
 });
+
+// 닉네임 변경 체크
+const nicknameChanged = computed(() => {
+  return user.nickname !== originalUser.nickname;
+});
+
 
 // 이미지 선택 및 미리보기
 const triggerImageInput = () => imageInput.value?.click();
@@ -40,14 +50,34 @@ const isModified = computed(() => {
 
 // 정보 수정 요청
 const updateUserInfo = async () => {
+  if(nicknameChanged.value && !isNicknameChecked.value){
+    toastVisible.value = true;
+    message.value = '닉네임 중복을 체크해주세요';
+    color.value = 'warning';
+    return;
+  }
+  if(!password.value){
+    toastVisible.value = true;
+    message.value = '비밀번호를 입력해주세요';
+    color.value = 'warning';
+    return;
+  }
   const formData = new FormData();
-    formData.append("user", new Blob([JSON.stringify({
-      name: user.name,
-      email: user.email,
-      nickname: user.nickname,
-      phone: user.phone,
-      password: password.value
-    })], { type: "application/json" }));
+  formData.append(
+    "user",
+    new Blob(
+      [
+        JSON.stringify({
+          name: user.name,
+          email: user.email,
+          nickname: user.nickname,
+          phone: user.phone,
+          password: password.value,
+        }),
+      ],
+      { type: "application/json" }
+    )
+  );
 
   if (!isOauthUser.value) {
     formData.append("password", password.value);
@@ -63,7 +93,8 @@ const updateUserInfo = async () => {
   });
 
   if (updated) {
-    alert("정보가 수정되었습니다.");
+    toastVisible.value = true;
+    message.value = '유저 정보 수정 완료'
     if (updated.profileImage) {
       user.profileImage = updated.profileImage;
     }
@@ -80,43 +111,44 @@ const resetUserInfo = () => {
   uploadedImageFile.value = null;
   password.value = "";
 };
-const nicknameChanged = computed(() => {
-  return user.nickname !== originalUser.nickname;
-});
 
-const isNicknameChecked = ref(false);
+
 const checkNickname = async () => {
   if (!user.nickname) return;
 
   try {
-    const res = await useApi('/auth/nickname-check', {
-      method: 'POST',
-      body: { nickname: user.nickname }
+    const res = await useApi("/auth/nickname-check", {
+      method: "POST",
+      body: { nickname: user.nickname },
     });
 
     if (res?.available) {
       isNicknameChecked.value = true;
       nicknameChanged.value = false;
-      alert('사용 가능한 닉네임입니다.');
+      toastVisible.value = true;
+      message.value = '사용가능한한 닉네임 입니다.'
+      color.value = 'success'
     } else {
       isNicknameChecked.value = false;
-      alert('이미 사용 중인 닉네임입니다.');
+      toastVisible.value = true;
+      message.value = '사용중인 닉네임 입니다.'
+      color.value = 'error'
     }
   } catch (err) {
-    console.error('닉네임 중복 확인 실패:', err);
-    alert('중복 확인 중 오류가 발생했습니다.');
+    console.error("닉네임 중복 확인 실패:", err);
+    alert("중복 확인 중 오류가 발생했습니다.");
   }
 };
 
-onMounted(async()=> {
+onMounted(async () => {
   const res = await useApi("/auth/my-page");
-  const userData = res.data
+  const userData = res.data;
   user.temperature = userData.temperature;
   user.ticket = userData.ticket;
   user.phone = userData.phone;
   user.nickname = userData.nickname;
   user.profileImage = userData.profile;
-})
+});
 </script>
 
 <template>
@@ -165,7 +197,7 @@ onMounted(async()=> {
         </h3>
         <p class="text-subtitle-2 mb-1">{{ user.email }}</p>
         <p class="text-caption text-grey-darken-1 mb-4">
-          신뢰 온도: {{ user.temperature || 36.5 }}℃           
+          신뢰 온도: {{ user.temperature || 36.5 }}℃
           <v-chip
             class="ms-2"
             color="primary"
@@ -176,8 +208,6 @@ onMounted(async()=> {
             🎟 등록권 {{ user.ticket || 0 }}장
           </v-chip>
         </p>
-        
-
 
         <!-- 사용자 정보 수정 폼 -->
         <v-form class="mt-2 w-50" @submit.prevent="updateUserInfo" ref="form">
@@ -187,7 +217,6 @@ onMounted(async()=> {
             label="이메일"
             dense
             density="compact"
-
           />
           <v-text-field
             v-model="user.name"
@@ -195,7 +224,6 @@ onMounted(async()=> {
             label="이름"
             dense
             density="compact"
-
           />
           <v-text-field
             v-model="user.nickname"
@@ -208,8 +236,8 @@ onMounted(async()=> {
             :rules="[(v) => !!v || '닉네임을 입력하세요.']"
             @input="isNicknameChecked = false"
           >
-            <!-- ✅ append 버튼 슬롯 -->
-           <template v-slot:append>
+            <!-- append 버튼 슬롯 -->
+            <template v-slot:append>
               <v-btn
                 variant="flat"
                 color="primary"
@@ -228,7 +256,6 @@ onMounted(async()=> {
             label="전화번호"
             dense
             density="compact"
-
           />
           <v-text-field
             v-if="isOauthUser"
@@ -238,7 +265,6 @@ onMounted(async()=> {
             label="비밀번호 확인"
             dense
             density="compact"
-
             :rules="[(v) => !!v || '비밀번호를 입력해주세요.']"
           />
 
@@ -269,6 +295,12 @@ onMounted(async()=> {
         </v-form>
       </div>
     </v-card>
+    <Toast
+      v-model="toastVisible"
+      :message="message"
+      :color="color"
+      :duration="2000"
+    />
   </MypageLayoutWrapper>
 </template>
 

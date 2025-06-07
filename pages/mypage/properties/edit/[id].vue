@@ -451,12 +451,38 @@ const submitEdit = async () => {
     return;
   }
 
-  await useApi(`/my/properties/${propertyId}`, {
-    method: "PUT",
-    body: property.value,
-  });
+const formData = new FormData();
+if (thumbnailFile.value && !property.value.thumbnailUrl) {
+  property.value.thumbnailUrl = originalResponse.value.thumbnailUrl;
+}
+
+if (imageFiles.value.length && (!property.value.imageUrls || property.value.imageUrls.length === 0)) {
+  property.value.imageUrls = [...originalResponse.value.imageUrls];
+}
+formData.append("request", new Blob([JSON.stringify(property.value)], { type: "application/json" }));
+if (thumbnailFile.value) formData.append("thumbnail", thumbnailFile.value);
+imageFiles.value.forEach((file) => formData.append("images", file));
+
+await useApi(`/properties/${propertyId}`, {
+  method: 'PATCH',
+  body: formData,
+});
+imageFiles.value = [];
+imagePreviews.value = [];
+removedImageUrls.value = [];
   alert("수정 완료");
-  navigateTo("/mypage/properties");
+  const res = await useApi(`/properties/${propertyId}`);
+    optionItems.forEach((item) => {
+    if (!(item.value in res.data.detail)) {
+      res.data.detail[item.value] = false;
+    }
+  });
+
+  property.value = res.data;
+
+  model.value = res.data.tags;
+  thumbnailPreview.value = property.value.thumbnailUrl;
+  originalResponse.value = JSON.parse(JSON.stringify(res.data));
 };
 
 const goBack = () => {
@@ -531,10 +557,29 @@ const availableDateFormatted = computed(() => {
 const isModified = computed(() => {
   if (!originalResponse.value) return false;
 
-  const current = JSON.stringify(property.value);
+  // 기본 property 비교 (title, deposit 등)
+  const current = JSON.stringify({
+    ...property.value,
+    // imageUrls는 원본 기준으로만 유지됨 → 비교에서 제외해도 됨
+    imageUrls: originalResponse.value.imageUrls, // 강제로 동일하게 맞춰주기
+    thumbnailUrl: originalResponse.value.thumbnailUrl,
+  });
+
   const original = JSON.stringify(originalResponse.value);
-  return current !== original;
+
+  // 새 이미지 추가됐는지 여부
+  const imagesChanged = imageFiles.value.length > 0;
+
+  // 기존 이미지 삭제됐는지 여부
+  const imagesRemoved = removedImageUrls.value.length > 0;
+
+  // 썸네일 새로 올렸는지 여부
+  const thumbnailChanged = thumbnailFile.value !== null;
+
+  // 종합 조건
+  return current !== original || imagesChanged || imagesRemoved || thumbnailChanged;
 });
+
 
 const { address, openPostcode, latitude, longitude, zonecode } = usePostcode();
 

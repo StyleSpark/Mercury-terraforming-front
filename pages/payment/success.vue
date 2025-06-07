@@ -40,7 +40,7 @@ onMounted(async () => {
 
     console.log('결제 성공 처리 결과:', response);
 
-    // ✅ 중복 처리 방지 플래그 저장
+    // 중복 처리 방지 플래그 저장
     sessionStorage.setItem(storageKey, 'done');
 
   } catch (error) {

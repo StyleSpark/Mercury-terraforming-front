@@ -94,7 +94,7 @@
     </v-app-bar>
 
     <!-- 페이지 본문 -->
-    <v-main>
+    <v-main class="mt-2">
       <NuxtPage />
     </v-main>
   </v-app>
