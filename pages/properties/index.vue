@@ -485,7 +485,36 @@ const toggleFavorite = async (item) => {
   }
 };
 
+//신고하기 모달 변수
 const showDialog = ref(false);
+
+//신고하기
+const createReport = () => {
+  if (!auth.isLoggedIn) {
+    loginDialogStore.open();
+    return;
+  }
+  showDialog.value = true;
+};
+
+//신고 제출
+const handleSubmit = async ({ reason, message }) => {
+  try {
+    await useApi("/reports", {
+      method: "POST",
+      body: {
+        targetId: selectedItem.value.id, // 매물 ID
+        targetType: reason,
+        content: message,
+        category: "PROPERTY",
+      },
+    });
+    // 성공 처리
+    // toast("신고가 접수되었습니다.");
+  } catch (e) {
+    // toast("신고 처리 중 오류가 발생했습니다.");
+  }
+};
 
 function getPriceText(item) {
   const type = item.propertyTypeId;
@@ -625,23 +654,19 @@ function getPriceText(item) {
                   }}</span>
                   <v-btn
                     icon
-                    class="favorite-btn"
-                    color="transparent"
-                    variant="outlined"
+                    variant="text"
+                    class="favorite-icon"
                     @mouseenter="isHovered = true"
                     @mouseleave="isHovered = false"
-                    @click="toggleFavorite(selectedItem)"
+                    :color="item.isFavorite ? 'red' : 'grey'"
+                    @click.stop="toggleFavorite(item)"
                   >
                     <v-icon
                       :color="isFavorite ? 'red' : isHovered ? 'red' : 'red'"
-                      transition="scale-transition"
+                      >{{
+                        item.isFavorite ? "mdi-heart" : "mdi-heart-outline"
+                      }}</v-icon
                     >
-                      {{
-                        isFavorite || isHovered
-                          ? "mdi-heart"
-                          : "mdi-heart-outline"
-                      }}
-                    </v-icon>
                   </v-btn>
                 </div>
               </div>
@@ -699,10 +724,7 @@ function getPriceText(item) {
                   <v-btn class="mr-2" color="info" variant="outlined"
                     >1:1 문의하기</v-btn
                   >
-                  <v-btn
-                    color="danger"
-                    variant="outlined"
-                    @click="showDialog = true"
+                  <v-btn color="danger" variant="outlined" @click="createReport"
                     >신고하기</v-btn
                   >
                   <v-btn

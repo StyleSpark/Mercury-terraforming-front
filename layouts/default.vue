@@ -61,8 +61,8 @@
           <template #activator="{ props }">
             <v-btn v-bind="props" variant="text" class="d-flex align-center" style="text-transform: none;">
               <v-avatar size="32" class="me-2" color="secondary">
-                <template v-if="auth.user?.profileImage">
-                  <img :src="auth.user.profileImage" alt="프로필" />
+                <template v-if="auth.user?.profile">
+                  <img :src="auth.user.profile" alt="프로필" />
                 </template>
                 <template v-else>
                   <v-icon icon="mdi-account-circle" />
@@ -76,6 +76,15 @@
           <v-list>
             <v-list-item @click="navigateTo('/mypage')">
               <v-list-item-title>마이페이지</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="navigateTo('/mypage/properties')">
+              <v-list-item-title>매물 관리</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="navigateTo('/mypage/inquiries')">
+              <v-list-item-title>문의</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="navigateTo('/mypage/purchase-history')">
+              <v-list-item-title>구매내용</v-list-item-title>
             </v-list-item>
             <v-list-item @click="logout">
               <v-list-item-title>로그아웃</v-list-item-title>
@@ -148,8 +157,12 @@ const handleLogin = async () => {
   if (response?.accessToken) {
     localStorage.setItem("access_token", response.accessToken)
     auth.setToken(response.accessToken)
-    auth.setUser(response.user)
     loginDialog.value = false
+    
+    const res = await useApi("/auth/my-page"); // 유저 정보
+    auth.setUser(res.data)
+    
+
   } else {
     alert("로그인 실패: 이메일 또는 비밀번호가 올바르지 않습니다.")
   }
