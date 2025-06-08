@@ -2,10 +2,20 @@
   <MypageLayoutWrapper>
     <v-card variant="outlined" class="pa-6 mb-4 inquiry-detail-card">
       <div class="d-flex justify-space-between align-center mb-6">
-        <div class="text-h5 font-weight-bold">문의 상세</div>
-        <v-btn color="primary" @click="goBack">목록으로 돌아가기</v-btn>
+        <!-- 왼쪽 : 목록으로 돌아가기 -->
+        <v-btn variant="text" @click="goBack" class="px-0">
+          <v-icon start>mdi-arrow-left</v-icon>
+          목록으로 돌아가기
+        </v-btn>
+
+        <!-- 오른쪽 : 수정/삭제 버튼 (PROCESSING일 때만 노출) -->
+        <div v-if="inquiry.status === 'PROCESSING'" class="d-flex align-center">
+          <v-btn color="primary" class="mr-2" @click="goToEdit">수정하기</v-btn>
+          <v-btn color="error" @click="confirmDialogVisible = true">삭제하기</v-btn>
+        </div>
       </div>
 
+      <div class="text-h5 font-weight-bold mb-3">문의 상세</div>
       <!-- 문의 제목 -->
       <div class="mb-4">
         <div class="text-subtitle-1 font-weight-medium mb-1">제목</div>
@@ -49,7 +59,21 @@
         </v-alert>
       </div>
     </v-card>
+<v-dialog v-model="confirmDialogVisible" max-width="400">
+  <v-card>
+    <v-card-title class="text-h6 font-weight-bold">문의 삭제 확인</v-card-title>
+    <v-card-text>정말로 삭제하시겠습니까? 삭제 후 복구가 불가능합니다.</v-card-text>
 
+    <v-card-actions class="justify-end">
+      <v-btn variant="text" color="primary" @click="confirmDialogVisible = false">
+        취소
+      </v-btn>
+      <v-btn color="error" @click="confirmDeleteInquiry">
+        삭제
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+</v-dialog>
     <Toast
       v-model="toastVisible"
       :message="message"
@@ -60,7 +84,6 @@
 </template>
 
 <script setup>
-import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
 const router = useRouter();
@@ -84,7 +107,6 @@ onMounted(async () => {
   try {
     const response = await useApi(`/questions/${inquiryId}`); // 서버에 상세 조회 요청
     inquiry.value = response.data;
-
   } catch (error) {
     message.value = "문의 상세 정보를 불러오는데 실패했습니다.";
     color.value = "error";
@@ -107,6 +129,7 @@ const statusLabel = (status) => {
   }
 };
 
+// 상태별 v-chip 컬러
 const statusColor = (status) => {
   switch (status) {
     case "PROCESSING":
@@ -126,6 +149,37 @@ const formatDate = (dateStr) => {
   )}-${String(date.getDate()).padStart(2, "0")} ${String(
     date.getHours()
   ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+};
+
+// tnwjd
+const goToEdit = () => {
+  router.push(`/mypage/inquiries/${inquiry.value.id}/edit`);
+};
+
+const confirmDialogVisible = ref(false);
+
+const confirmDeleteInquiry = async () => {
+  try {
+    await useApi(`/questions/${inquiry.value.id}`, {
+      method: "DELETE",
+    });
+
+    message.value = "문의가 삭제되었습니다.";
+    color.value = "success";
+    toastVisible.value = true;
+
+    confirmDialogVisible.value = false; // dialog 닫기
+
+    setTimeout(() => {
+      router.push("/mypage/inquiries");
+    }, 1000);
+
+  } catch (error) {
+    message.value = "문의 삭제에 실패했습니다.";
+    color.value = "error";
+    toastVisible.value = true;
+    confirmDialogVisible.value = false; // dialog 닫기
+  }
 };
 </script>
 
