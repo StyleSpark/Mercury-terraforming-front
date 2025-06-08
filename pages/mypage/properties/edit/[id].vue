@@ -479,6 +479,9 @@ removedImageUrls.value = [];
   });
 
   property.value = res.data;
+  
+  thumbnailFile.value = [];
+  imageFiles.value = [];
 
   model.value = res.data.tags;
   thumbnailPreview.value = property.value.thumbnailUrl;

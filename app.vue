@@ -1,16 +1,16 @@
 <script setup>
-const config = useRuntimeConfig()
+const config = useRuntimeConfig();
 useHead({
   script: [
     {
-      src: `//dapi.kakao.com/v2/maps/sdk.js?autoload=true&appkey=${config.public.kakaoMapKey}&autoload=false&libraries=services`,
+      src: `//dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${config.public.kakaoMapKey}&libraries=services,clusterer`,
     },
   ],
-})
+});
 </script>
 
 <template>
-  <v-app >
-    <NuxtLayout/>
+  <v-app>
+    <NuxtLayout />
   </v-app>
 </template>
