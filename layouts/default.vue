@@ -11,7 +11,7 @@
         <v-btn text @click="navigateTo('/properties')" :class="{ active: route.path === '/properties' }">매물 리스트</v-btn>
         <v-btn text @click="navigateTo('/agents')" :class="{ active: route.path === '/agents' }">중개인 리스트</v-btn>
         <!-- <v-btn text @click="navigateTo('/proxy-services')" :class="{ active: route.path === '/proxy-services' }">대리 서비스</v-btn> -->
-        <v-btn text @click="navigateTo('/community')" :class="{ active: route.path === '/community' }">커뮤니티</v-btn>
+        <v-btn text @click="navigateTo('/communities')" :class="{ active: route.path === '/communities' }">커뮤니티</v-btn>
       </div>
 
       <v-spacer />
