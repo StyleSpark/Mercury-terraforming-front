@@ -28,6 +28,7 @@ const menu = [
   { label: '매물 관리', path: '/mypage/properties' },
   { label: '문의', path: '/mypage/inquiries' },
   { label: '구매 내역', path: '/mypage/purchase-history' },
+  { label: '중개인 신청', path: '/mypage/agent/register' },
   { label: '회원 탈퇴', path: '/mypage/withdraw' },
 ]
 </script>

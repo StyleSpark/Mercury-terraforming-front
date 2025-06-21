@@ -12,6 +12,10 @@ const selectedTime = ref(null);
 const properties = ref([]);
 const detailMap = ref(null);
 const defaultMap = ref(null);
+
+const isLoading = ref(true);
+
+const userLocationReady = ref(false);
 // db에서?
 const plan = {
   name: "방문 예약 예치금",
@@ -187,10 +191,10 @@ function drawDetailMap(property) {
   window.detailMapVisibleMarker = visibleMarker;
 }
 
-const mapCenter = ref([
-  userLocation.value.latitude,
-  userLocation.value.longitude,
-]);
+// const mapCenter = ref([
+//   userLocation.value.latitude,
+//   userLocation.value.longitude,
+// ]);
 const mapLevel = ref(5);
 
 async function drawListMap() {
@@ -405,24 +409,23 @@ async function fetchPropertiesNearby() {
   drawListMap(properties.value);
 }
 
-onMounted(async () => {
-  await nextTick();
+const mapCenter = ref(null);
 
-  // 위치 동의 로직
+onMounted(async () => {
   if (navigator.geolocation) {
     await new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           userLocation.value.latitude = position.coords.latitude;
           userLocation.value.longitude = position.coords.longitude;
+
           mapCenter.value = [
             position.coords.latitude,
             position.coords.longitude,
           ];
           resolve();
         },
-        (error) => {
-          // 위치 거부/실패 시 fallback
+        () => {
           mapCenter.value = [
             userLocation.value.latitude,
             userLocation.value.longitude,
@@ -431,16 +434,13 @@ onMounted(async () => {
         }
       );
     });
-  } else {
-    mapCenter.value = [
-      userLocation.value.latitude,
-      userLocation.value.longitude,
-    ];
   }
 
-  // 반드시 userLocation/mapCenter 결정된 뒤 drawListMap 호출
-  await fetchPropertiesNearby();
+  userLocationReady.value = true;
+    await fetchPropertiesNearby();
+  isLoading.value = false;
 });
+
 
 const isHovered = ref(false);
 const isFavorite = computed(() => selectedItem.value?.isFavorite ?? false);
@@ -569,7 +569,7 @@ function getPriceText(item) {
           />
         </v-col>
 
-        <v-row dense>
+        <v-row dense v-if="!isLoading && userLocationReady">
           <v-col
             cols="12"
             v-for="item in properties"
@@ -671,6 +671,11 @@ function getPriceText(item) {
                 </div>
               </div>
             </v-card>
+          </v-col>
+        </v-row>
+        <v-row dense v-else>
+          <v-col cols="12" class="text-center py-10">
+            <v-progress-circular indeterminate color="primary" />
           </v-col>
         </v-row>
       </v-col>

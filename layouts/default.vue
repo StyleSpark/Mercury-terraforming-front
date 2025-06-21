@@ -86,6 +86,9 @@
             <v-list-item @click="navigateTo('/mypage/purchase-history')">
               <v-list-item-title>구매내용</v-list-item-title>
             </v-list-item>
+            <v-list-item @click="navigateTo('/mypage/agent/register')">
+              <v-list-item-title>중개인 신청</v-list-item-title>
+            </v-list-item>
             <v-list-item @click="logout">
               <v-list-item-title>로그아웃</v-list-item-title>
             </v-list-item>
@@ -162,7 +165,6 @@ const handleLogin = async () => {
     const res = await useApi("/auth/my-page"); // 유저 정보
     auth.setUser(res.data)
     
-
   } else {
     alert("로그인 실패: 이메일 또는 비밀번호가 올바르지 않습니다.")
   }

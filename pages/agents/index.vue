@@ -1,124 +1,378 @@
-
 <script setup>
-const selectedItem = ref(null)
+const auth = useAuthStore();
+const selectedItem = ref(null);
+const detailMap = ref(null);
+const defaultMap = ref(null);
 
-const items = Array.from({ length: 10 }, (_, index) => ({
-  id: index + 1,
-  title: `중개인 ${index + 1}`,
-  price: `월세 ${50 + index * 5}만원`,
-  location: '서울시 강남구',
-  description: '강남구 주변으로 10년 넘게 집을 소개시켜드리고 있는 중개인 입니다.',
-  thumbnail: 'https://images.unsplash.com/photo-1611602132416-da2045990f76?q=80&w=2574&auto=format&fit=crop',
-  options: {
-    rooms: 3,
-    bathrooms: 2,
-    size: '85㎡',
-    floor: '5층',
-    hasParking: index % 2 === 0,
-    hasElevator: index % 3 === 0,
-    hasPet: index % 4 === 0
-  },
-  user: {
-    nickname: `사용자${index + 1}`,
-    profileImg: `https://randomuser.me/api/portraits/men/${index + 10}.jpg`
+const comments = ref([]);
+const newComment = ref("");
+
+const agents = ref([]);
+const searchKeyword = ref("");
+
+const agentMapCenter = ref([37.5665, 126.978]);
+const agentMapLevel = ref(5);
+const agentMapBounds = ref({
+  swLat: 0,
+  swLng: 0,
+  neLat: 0,
+  neLng: 0,
+});
+
+const selectItem = async (item) => {
+  const [agentRes, propertiesRes, reviewsRes] = await Promise.all([
+    useApi(`/agents/${item.id}`, { method: "GET" }),
+    useApi(`/agents/${item.id}/properties`, {
+      method: "GET",
+      params: { page: 1, size: 10 },
+    }),
+    useApi(`/agents/${item.id}/reviews`, {
+      method: "GET",
+      params: { page: 1, size: 5 },
+    }),
+  ]);
+
+  selectedItem.value = {
+    ...agentRes.data,
+    properties: propertiesRes.data?.properties || [],
+    reviews: reviewsRes.data?.agentReviews || [],
+  };
+
+  await nextTick();
+  drawDetailMap();
+};
+
+const drawDetailMap = async () => {
+  if (!detailMap.value || !selectedItem.value) return;
+
+  const { latitude, longitude } = selectedItem.value;
+  const map = await useKakaoMap(detailMap.value, latitude, longitude, 3);
+
+  new window.kakao.maps.Marker({
+    position: new window.kakao.maps.LatLng(latitude, longitude),
+    map,
+  });
+};
+
+const lastMapCenter = ref([37.5665, 126.978]);
+const lastMapLevel = ref(5);
+const drawDefaultMap = async (
+  center = agentMapCenter.value,
+  level = agentMapLevel.value
+) => {
+  if (!defaultMap.value) return;
+
+  const [lat, lng] = center;
+  const map = await useKakaoMap(defaultMap.value, lat, lng, level);
+  window.agentMap = map;
+
+  const updateAgentsByBounds = async () => {
+    const bounds = map.getBounds();
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+
+    const center = map.getCenter();
+    lastMapCenter.value = [center.getLat(), center.getLng()];
+    lastMapLevel.value = map.getLevel();
+
+    agentMapBounds.value = {
+      swLat: sw.getLat(),
+      swLng: sw.getLng(),
+      neLat: ne.getLat(),
+      neLng: ne.getLng(),
+    };
+
+    const response = await useApi("/agents/withinBounds", {
+      method: "GET",
+      params: {
+        ...agentMapBounds.value,
+        keyword: searchKeyword.value || null,
+      },
+    });
+    agents.value = response.data || [];
+
+    const markers = agents.value
+      .map((agent) => {
+        if (!agent.latitude || !agent.longitude) return null;
+        const position = new kakao.maps.LatLng(agent.latitude, agent.longitude);
+        return new kakao.maps.Marker({
+          position,
+          clickable: true,
+          image: new kakao.maps.MarkerImage(
+            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+            new kakao.maps.Size(1, 1),
+            { offset: new kakao.maps.Point(0, 0) }
+          ),
+        });
+      })
+      .filter(Boolean);
+
+    const clusterer = new kakao.maps.MarkerClusterer({
+      map: map,
+      averageCenter: true,
+      minLevel: 1,
+      disableClickZoom: true,
+      calculator: [1, 5, 10, 30, 50],
+      minClusterSize: 1,
+      renderer: {
+        createClusterMarker: function (cluster) {
+          const count = cluster.getSize();
+          const position = cluster.getCenter();
+          const content = `
+            <div style="
+              width: 40px;
+              height: 40px;
+              background: rgba(255, 102, 102, 0.8);
+              border-radius: 20px;
+              color: #fff;
+              text-align: center;
+              line-height: 40px;
+              font-weight: bold;
+              font-size: 14px;
+              box-shadow: 0 0 6px rgba(0,0,0,0.3);
+            ">${count}</div>
+          `;
+          return new kakao.maps.CustomOverlay({
+            position,
+            content,
+            yAnchor: 0.5,
+          });
+        },
+      },
+    });
+
+    clusterer.addMarkers(markers);
+    window.agentClusterer = clusterer;
+  };
+
+  kakao.maps.event.addListener(map, "idle", updateAgentsByBounds);
+  kakao.maps.event.trigger(map, "idle");
+};
+
+onMounted(async () => {
+  if (!selectedItem.value) {
+    await nextTick();
+    drawDefaultMap();
   }
-}))
+});
 
-const comments = ref([])
-const newComment = ref('')
+const rating = ref(0); // 평점
+const selectedPropertyId = ref(null); // 선택한 매물 id, 필요시 선택 UI 추가
 
-const selectItem = (item) => {
-  selectedItem.value = item
-}
-
-const submitComment = () => {
-  if (newComment.value.trim() !== '') {
-    comments.value.push(newComment.value)
-    newComment.value = ''
-    
+const submitComment = async () => {
+  if (!newComment.value.trim() || rating.value === 0) {
+    alert("리뷰 내용과 평점을 모두 입력해주세요.");
+    return;
   }
-}
 
-const textWithTag = ref("<p>태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.태그가 달린 텍스트 코드입니다.</p>");
+  const agentId = selectedItem.value?.id;
+  if (!agentId) return;
+  try {
+    const payload = {
+      content: newComment.value.trim(),
+      rate: rating.value,
+      propertyId:
+        selectedPropertyId.value ||
+        selectedItem.value.properties?.[0]?.id ||
+        null,
+    };
+    const res = await useApi(`/agents/${agentId}/reviews`, {
+      method: "POST",
+      body: payload,
+    });
 
+    // 서버 등록 후 댓글 다시 불러오기
+    const reviewsRes = await useApi(`/agents/${agentId}/reviews`, {
+      method: "GET",
+      params: { page: 1, size: 5 },
+    });
+    selectedItem.value.reviews = reviewsRes.data.agentReviews || [];
 
-const detailMap = ref(null)
-const defaultMap = ref(null)
+    // 초기화
+    newComment.value = "";
+    rating.value = 0;
+    selectedPropertyId.value = null;
+  } catch (e) {
+    console.error(e);
+    alert("리뷰 등록에 실패했습니다.");
+  }
+};
 
-watch([selectedItem, detailMap, defaultMap], async () => {
-  await nextTick()
-  const target = selectedItem.value ? detailMap.value : defaultMap.value
-  if (!target) return
+watch(selectedItem, async (val) => {
+  if (val === null) {
+    await nextTick();
+    drawDefaultMap(lastMapCenter.value, lastMapLevel.value);
+  }
+});
 
-  target.innerHTML = ''
-  new kakao.maps.Map(target, {
-    center: new window.kakao.maps.LatLng(37.5665, 126.9780),
-    level: 3
-  })
-})
+onMounted(async () => {
+  if (!selectedItem.value) {
+    if (navigator.geolocation) {
+      try {
+        const position = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject)
+        );
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        agentMapCenter.value = [lat, lng];
+      } catch (error) {
+        console.warn("📍 위치 접근 실패, 기본 위치로 설정:", error);
+      }
+    }
+    await nextTick();
+    drawDefaultMap();
+  }
+});
 
-const tab = shallowRef('tab-1')
-  const tabs = [
-    {
-      icon: 'mdi-book-open-page-variant',
-      text: 'Readme',
-      value: 'tab-1',
-    },
-    {
-      icon: 'mdi-handshake-outline',
-      text: 'Code of Conduct',
-      value: 'tab-2',
-    },
-  ]
+const tab = ref("properties");
+const tabs = [
+  { text: "매물 목록", value: "properties", icon: "mdi-home-city" },
+  { text: "중개인 리뷰", value: "reviews", icon: "mdi-star" },
+];
 
+const editingReviewId = ref(null);
+const editingContent = ref("");
 
+const startEditReview = (review) => {
+  editingReviewId.value = review.reviewId;
+  editingContent.value = review.content;
+};
+
+const cancelEditReview = () => {
+  editingReviewId.value = null;
+  editingContent.value = "";
+};
+
+const confirmEditReview = async () => {
+  try {
+    await useApi(
+      `/agents/${selectedItem.value.id}/reviews/${editingReviewId.value}`,
+      {
+        method: "PUT",
+        body: {
+          content: editingContent.value,
+        },
+      }
+    );
+
+    const res = await useApi(`/agents/${selectedItem.value.id}/reviews`, {
+      method: "GET",
+      params: { page: 1, size: 5 },
+    });
+
+    selectedItem.value.reviews = res.data.agentReviews;
+    editingReviewId.value = null;
+    editingContent.value = "";
+  } catch (e) {
+    alert("리뷰 수정 실패");
+  }
+};
+
+const deleteReview = async (reviewId) => {
+  if (!confirm("정말 삭제하시겠습니까?")) return;
+
+  await useApi(`/agents/${selectedItem.value.id}/reviews/${reviewId}`, {
+    method: "DELETE",
+  });
+
+  const res = await useApi(`/agents/${selectedItem.value.id}/reviews`, {
+    method: "GET",
+    params: { page: 1, size: 5 },
+  });
+
+  selectedItem.value.reviews = res.data.agentReviews;
+};
 </script>
 
 <template>
   <v-container fluid class="pa-0">
     <v-row no-gutters>
-      
       <!-- 왼쪽 매물 리스트 -->
-      <v-col cols="12" md="4" class="pa-4" style="height: calc(100vh - 64px); overflow-y: auto;">
+      <v-col
+        cols="12"
+        md="4"
+        class="pa-4"
+        style="height: calc(100vh - 64px); overflow-y: auto"
+      >
         <!-- 리스트 영역 맨 위에 추가 -->
-          <v-col cols="12" class="px-0">
-            <v-text-field
-              v-model="searchKeyword"
-              placeholder="지역, 제목, 가격 등으로 검색"
-              prepend-inner-icon="mdi-magnify"
-              clearable
-              hide-details
-              density="compact" 
-              class="mb-4"
-              variant="outlined"
-            />
-          </v-col>
-          
+        <v-col cols="12" class="px-0">
+          <v-text-field
+            v-model="searchKeyword"
+            placeholder="지역, 제목, 가격 등으로 검색"
+            prepend-inner-icon="mdi-magnify"
+            clearable
+            hide-details
+            density="compact"
+            class="mb-4"
+            variant="outlined"
+          />
+        </v-col>
+
         <v-row dense>
-          <v-col cols="12" v-for="item in items" :key="item.id" class="mb-4">
+          <v-col cols="12" v-for="item in agents" :key="item.id" class="mb-4">
             <v-card
               class="d-flex hover-card"
               @click="selectItem(item)"
-              style="cursor: pointer; min-height: 120px;"
+              style="cursor: pointer; min-height: 120px"
             >
-              <div style="width: 40%; height: 100%; display: flex;">
+              <div style="width: 40%; height: 250px; display: flex">
                 <v-img
                   :src="item.thumbnail"
                   alt="thumbnail"
                   cover
-                  style="width: 100%; object-fit: cover; border-top-left-radius: 4px; border-bottom-left-radius: 4px;"
+                  style="
+                    width: 100%;
+                    object-fit: cover;
+                    border-top-left-radius: 4px;
+                    border-bottom-left-radius: 4px;
+                  "
                 />
               </div>
-              <div class="d-flex flex-column justify-center pa-4" style="width: 60%;">
-                <h3 class="text-subtitle-1 font-weight-bold mb-1" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                  {{ item.title }}
+              <div
+                class="d-flex flex-column justify-center pa-4"
+                style="width: 60%"
+              >
+                <!-- 브랜드명 -->
+                <h3
+                  class="text-subtitle-1 font-weight-bold mb-1"
+                  style="
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                  "
+                >
+                  {{ item.brand }}
                 </h3>
-                <p class="text-body-2 font-weight-bold mb-1" style="color: #FF8339;">{{ item.location }}</p>
+
+                <!-- 리뷰 정보 -->
+                <div class="d-flex align-center mb-1">
+                  <v-icon color="#FFB300" size="16" class="mr-1"
+                    >mdi-star</v-icon
+                  >
+                  <span class="text-body-2">{{
+                    item.reviewAvg?.toFixed(1) ?? "0.0"
+                  }}</span>
+                  <span class="text-caption text-grey ml-2"
+                    >({{ item.reviewCount ?? 0 }}건)</span
+                  >
+                </div>
+
+                <!-- 위치 정보 -->
+                <p
+                  class="text-body-2 font-weight-bold mb-1"
+                  style="color: #ff8339"
+                >
+                  {{ item.location }}
+                </p>
+
+                <!-- 중개인 프로필 -->
                 <div class="d-flex align-center mt-2">
                   <v-avatar size="24" class="mr-2">
-                    <img :src="item.user.profileImg" alt="프로필 이미지" />
+                    <img :src="item.profileUrl" alt="프로필 이미지" />
                   </v-avatar>
-                  <span class="text-caption text-grey">{{ item.user.nickname }}</span>
+                  <span class="text-caption text-grey" v-if="item.name">{{
+                    item.name
+                  }}</span>
                 </div>
               </div>
             </v-card>
@@ -127,25 +381,48 @@ const tab = shallowRef('tab-1')
       </v-col>
 
       <!-- 오른쪽 상세 보기 -->
-      <v-col cols="12" md="8" class="pa-0" style="height: calc(100vh - 64px); overflow-y: auto;">
+      <v-col
+        cols="12"
+        md="8"
+        class="pa-0"
+        style="height: calc(100vh - 64px); overflow-y: auto"
+      >
         <template v-if="selectedItem">
-          <div style="position: relative;">
-            <v-btn icon color="grey" class="ma-4" style="position: absolute; top: 0; left: 0; z-index: 10;" @click="selectedItem = null">
+          <div style="position: relative">
+            <v-btn
+              icon
+              color="grey"
+              class="ma-4"
+              style="position: absolute; top: 0; left: 0; z-index: 10"
+              @click="selectedItem = null"
+            >
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
 
             <v-img
-                  :src="selectedItem.thumbnail"
-                  alt="thumbnail"
-                  cover
-                  height="500"
-                  style="width: 100%; object-fit: cover; border-top-left-radius: 4px; border-bottom-left-radius: 4px;"
-                />
+              :src="selectedItem.profileUrl"
+              alt="thumbnail"
+              cover
+              height="500"
+              style="
+                width: 100%;
+                object-fit: cover;
+                border-top-left-radius: 4px;
+                border-bottom-left-radius: 4px;
+              "
+            />
             <v-container class="py-8">
               <v-row justify="center" class="text-center mb-8">
                 <v-col cols="12" md="8">
-                  <h2 class="text-h5 font-weight-bold mb-4">{{ selectedItem.title }}</h2>
-                  <p class="text-body-1 font-weight-bold mb-2" style="color: #FF8339;">{{ selectedItem.location }}</p>
+                  <h2 class="text-h5 font-weight-bold mb-4">
+                    {{ selectedItem.brand }}
+                  </h2>
+                  <p
+                    class="text-body-1 font-weight-bold mb-2"
+                    style="color: #ff8339"
+                  >
+                    {{ selectedItem.location }}
+                  </p>
                   <p class="text-body-1">{{ selectedItem.description }}</p>
                 </v-col>
               </v-row>
@@ -153,7 +430,9 @@ const tab = shallowRef('tab-1')
               <v-row class="mb-8" align="start">
                 <!-- 옵션 -->
                 <v-col cols="6">
-                  <h3 class="text-subtitle-1 font-weight-bold mb-4">추가 설명</h3>
+                  <h3 class="text-subtitle-1 font-weight-bold mb-4">
+                    추가 설명
+                  </h3>
                   <v-row class="text-center">
                     <div v-html="textWithTag" class="px-3 text-left"></div>
                   </v-row>
@@ -161,11 +440,16 @@ const tab = shallowRef('tab-1')
 
                 <!-- 지도 -->
                 <v-col cols="6" class="text-center">
-                  <h3 class="text-subtitle-1 font-weight-bold mb-4 text-left">위치</h3>
-                  <div ref="detailMap" style="width: 500px; height: 400px;"></div>
+                  <h3 class="text-subtitle-1 font-weight-bold mb-4 text-left">
+                    위치
+                  </h3>
+                  <div
+                    ref="detailMap"
+                    style="width: 500px; height: 400px"
+                  ></div>
                   <div>
                     <v-icon color="#FF8339" size="16">mdi-map-marker</v-icon>
-                    {{ selectedItem.location }}
+                    {{ selectedItem.address }}
                   </div>
                 </v-col>
               </v-row>
@@ -173,79 +457,235 @@ const tab = shallowRef('tab-1')
                 <!-- 옵션 -->
                 <v-col cols="12">
                   <!-- tabs 영역 -->
-                    <v-tabs
-                      v-model="tab"
-                      :items="tabs"
-                      align-tabs="left"
-                      color="black"
-                      height="60"
-                      slider-color="#f78166"
-                    >
-                      <template v-slot:tab="{ item }">
-                        <v-tab
-                          :prepend-icon="item.icon"
-                          :text="item.text"
-                          :value="item.value"
-                          class="text-none"
-                        ></v-tab>
-                      </template>
+                  <v-tabs
+                    v-model="tab"
+                    :items="tabs"
+                    align-tabs="left"
+                    color="black"
+                    height="60"
+                    slider-color="#f78166"
+                  >
+                    <template v-slot:tab="{ item }">
+                      <v-tab
+                        :prepend-icon="item.icon"
+                        :text="item.text"
+                        :value="item.value"
+                        class="text-none"
+                      ></v-tab>
+                    </template>
 
-                      <template v-slot:item="{ item }">
-                        <v-tabs-window-item :value="item.value" class="pa-4">
-                          <v-card
-                            class="mx-auto"
-                            max-width="344"
-                          >
-                            <v-img
-                              height="200px"
-                              src="https://cdn.vuetifyjs.com/images/cards/sunshine.jpg"
-                              cover
-                            ></v-img>
+                    <template v-slot:item="{ item }">
+                      <v-tabs-window-item
+                        :value="item.value"
+                        class="pa-4"
+                        :transition="false"
+                        :reverse-transition="false"
+                      >
+                        <!-- 매물 목록 탭 -->
+                        <template v-if="item.value === 'properties'">
+                          <v-row dense>
+                            <v-col
+                              v-for="(
+                                property, index
+                              ) in selectedItem.properties"
+                              :key="index"
+                              cols="12"
+                              sm="6"
+                              md="4"
+                            >
+                              <v-card>
+                                <v-img
+                                  :src="property.thumbnailUrl"
+                                  height="160px"
+                                  cover
+                                  class="rounded-t"
+                                />
+                                <v-card-title
+                                  class="text-subtitle-1 font-weight-bold"
+                                >
+                                  {{ property.title }}
+                                </v-card-title>
+                                <v-card-subtitle class="text-body-2 text-grey">
+                                  {{ property.address }}
+                                </v-card-subtitle>
+                                <v-card-text>
+                                  <div class="text-caption">
+                                    {{ property.propertyTypeId }}
+                                    {{ property.deposit }} /
+                                    {{ property.maintenanceFee }}
+                                  </div>
+                                </v-card-text>
+                              </v-card>
+                            </v-col>
+                          </v-row>
+                        </template>
 
-                            <v-card-title>
-                              Top western road trips
-                            </v-card-title>
+                        <!-- 리뷰 탭 -->
+                        <template v-else-if="item.value === 'reviews'">
+                          <h3 class="text-h6 font-weight-bold mb-4">
+                            리뷰 작성
+                          </h3>
 
-                            <v-card-subtitle>
-                              1,000 miles of wonder
-                            </v-card-subtitle>
-                          </v-card>
-                        </v-tabs-window-item>
-                      </template>
-                    </v-tabs>
-                </v-col>
-              </v-row>
+                          <!-- 평점 입력 -->
+                          <v-row dense class="mb-2">
+                            <v-col cols="12" class="d-flex align-center">
+                              <span class="mr-2">평점:</span>
+                              <v-rating
+                                v-model="rating"
+                                length="5"
+                                color="amber"
+                                background-color="grey lighten-2"
+                                half-increments
+                              />
+                              <span class="ml-2">{{ rating }}</span>
+                            </v-col>
+                          </v-row>
 
-              <!-- 댓글 -->
-              <v-divider class="my-8"></v-divider>
-              <v-row>
-                <v-col cols="12">
-                  <h3 class="text-h6 font-weight-bold mb-4">댓글</h3>
-                  <v-row dense class="mb-4">
-                    <v-col cols="10">
-                      <v-text-field
-                        v-model="newComment"
-                        placeholder="댓글을 입력하세요"
-                        dense
-                        density="compact"
-                        hide-details
-                      />
-                    </v-col>
-                    <v-col cols="2" class="d-flex align-center">
-                      <v-btn color="#FF8339" @click="submitComment" block>등록</v-btn>
-                    </v-col>
-                  </v-row>
+                          <!-- 리뷰 작성 입력창 -->
+                          <v-row dense class="mb-4">
+                            <v-col cols="10">
+                              <v-text-field
+                                v-model="newComment"
+                                placeholder="리뷰 내용을 입력하세요"
+                                dense
+                                variant="outlined"
+                                density="compact"
+                                hide-details
+                                @keydown.enter="submitComment"
+                              />
+                            </v-col>
+                            <v-col cols="2" class="d-flex align-center">
+                              <v-btn
+                                color="#FF8339"
+                                @click="submitComment"
+                                block
+                                >등록</v-btn
+                              >
+                            </v-col>
+                          </v-row>
 
-                  <v-list>
-                    <v-list-item
-                      v-for="(comment, index) in comments"
-                      :key="index"
-                    >
-                      <v-list-item-content>
-                        <v-list-item-title>{{ comment }}</v-list-item-title>
-                      </v-list-item-content>
-                    </v-list-item>
-                  </v-list>
+                          <!-- 리뷰 목록 -->
+                          <h3 class="text-h6 font-weight-bold mb-4">
+                            작성된 리뷰
+                          </h3>
+                          <v-list>
+                            <v-list-item
+                              v-for="(review, index) in selectedItem.reviews"
+                              :key="index"
+                              class="pa-0 mb-4"
+                            >
+                              <v-row no-gutters>
+                                <!-- 아바타 -->
+                                <v-col cols="auto" class="mr-3">
+                                  <v-avatar size="40">
+                                    <img :src="review.profile" alt="profile" />
+                                  </v-avatar>
+                                </v-col>
+
+                                <!-- 본문 -->
+                                <v-col>
+                                  <div class="d-flex align-center mb-1">
+                                    <span class="font-weight-bold mr-2">{{
+                                      review.name
+                                    }}</span>
+                                    <v-icon color="amber" size="16"
+                                      >mdi-star</v-icon
+                                    >
+                                    <span class="ml-1 text-caption">{{
+                                      Number(review.rate).toFixed(1)
+                                    }}</span>
+                                    <span class="mx-2">·</span>
+                                    <span class="text-caption grey--text">
+                                      {{
+                                        new Date(
+                                          review.createdAt
+                                        ).toLocaleDateString()
+                                      }}
+                                    </span>
+
+                                    <!-- 본인이 작성한 경우 수정/삭제 버튼 표시 -->
+                                    <v-spacer />
+                                    <template
+                                      v-if="
+                                        auth.user?.id === review.id &&
+                                        !editingReviewId
+                                      "
+                                    >
+                                      <v-btn
+                                        icon
+                                        size="small"
+                                        @click="startEditReview(review, index)"
+                                      >
+                                        <v-icon size="16">mdi-pencil</v-icon>
+                                      </v-btn>
+                                      <v-btn
+                                        icon
+                                        size="small"
+                                        @click="deleteReview(review.reviewId)"
+                                      >
+                                        <v-icon size="16" color="red"
+                                          >mdi-delete</v-icon
+                                        >
+                                      </v-btn>
+                                    </template>
+                                  </div>
+
+                                  <!-- 본문 or 수정 필드 -->
+                                  <div
+                                    v-if="editingReviewId === review.reviewId"
+                                  >
+                                    <v-row dense class="align-center mb-2">
+                                      <!-- 수정 입력 필드 -->
+                                      <v-col>
+                                        <v-text-field
+                                          v-model="editingContent"
+                                          dense
+                                          density="compact"
+                                          hide-details
+                                          variant="outlined"
+                                          @keydown.enter="confirmEditReview"
+                                        />
+                                      </v-col>
+
+                                      <!-- 저장 버튼 -->
+                                      <v-col
+                                        cols="1"
+                                        class="d-flex justify-end"
+                                      >
+                                        <v-btn
+                                          small
+                                          color="primary"
+                                          @click="confirmEditReview"
+                                          block
+                                          >저장</v-btn
+                                        >
+                                      </v-col>
+
+                                      <!-- 취소 버튼 -->
+                                      <v-col
+                                        cols="1"
+                                        class="d-flex justify-start"
+                                      >
+                                        <v-btn
+                                          small
+                                          @click="cancelEditReview"
+                                          block
+                                          >취소</v-btn
+                                        >
+                                      </v-col>
+                                    </v-row>
+                                  </div>
+                                  <div v-else class="text-body-2">
+                                    {{ review.content }}
+                                  </div>
+                                </v-col>
+                              </v-row>
+                            </v-list-item>
+                          </v-list>
+                        </template>
+                      </v-tabs-window-item>
+                    </template>
+                  </v-tabs>
                 </v-col>
               </v-row>
             </v-container>
@@ -253,13 +693,22 @@ const tab = shallowRef('tab-1')
         </template>
 
         <template v-else>
-          <div  ref="defaultMap" style="width: 100%; height: 100%; background-color: #eee; display: flex; align-items: center; justify-content: center;"></div>
+          <div
+            ref="defaultMap"
+            style="
+              width: 100%;
+              height: 100%;
+              background-color: #eee;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+          ></div>
         </template>
       </v-col>
     </v-row>
   </v-container>
 </template>
-
 
 <style scoped>
 .hover-card:hover {
