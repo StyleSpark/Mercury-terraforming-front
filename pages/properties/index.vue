@@ -196,6 +196,9 @@ function drawDetailMap(property) {
 //   userLocation.value.longitude,
 // ]);
 const mapLevel = ref(5);
+const currentPage = ref(1);
+const totalPages = ref(1);
+const isFetching = ref(false);
 
 async function drawListMap() {
   await nextTick();
@@ -240,10 +243,14 @@ async function drawListMap() {
     };
 
     // (6) fetch 후 클러스터/마커/리스트 동기화
-    const response = await useApi("/properties/withinBounds", {
+    const response = await useApi("/properties/markers", {
       method: "GET",
       params: { ...mapBounds.value },
     });
+    currentPage.value = 1;
+    totalPages.value = 1;
+    properties.value = {};
+    await fetchPropertyList();
 
     // 클러스터 완전 초기화
     if (window.propertyClusterer) {
@@ -307,14 +314,40 @@ async function drawListMap() {
 
     clusterer.addMarkers(markers);
     window.propertyClusterer = clusterer;
-
-    // 리스트 동기화
-    properties.value = response.data;
   });
 
   // (7) idle 이벤트 강제 트리거 (초기 마운트/복귀 시 데이터 즉시 로딩)
   kakao.maps.event.trigger(map, "idle");
 }
+
+const searchKeyword = ref(null);
+const fetchPropertyList = async () => {
+  if (isFetching.value || currentPage.value > totalPages.value) return;
+  isFetching.value = true;
+
+  const response = await useApi("/properties/withinBounds", {
+    method: "GET",
+    params: {
+      ...mapBounds.value,
+      keyword: searchKeyword.value || null,
+      page: currentPage.value,
+      size: 20,
+    },
+  });
+
+  const propertiesFromApi = response.data?.properties ?? [];
+  const total = response.data?.total ?? 1;
+
+  if (currentPage.value === 1) {
+    properties.value = propertiesFromApi;
+  } else {
+    properties.value.push(...propertiesFromApi);
+  }
+
+  totalPages.value = total;
+  currentPage.value++;
+  isFetching.value = false;
+};
 
 const isAllowedDate = (date) => {
   const today = new Date();
@@ -437,10 +470,9 @@ onMounted(async () => {
   }
 
   userLocationReady.value = true;
-    await fetchPropertiesNearby();
+  await fetchPropertiesNearby();
   isLoading.value = false;
 });
-
 
 const isHovered = ref(false);
 const isFavorite = computed(() => selectedItem.value?.isFavorite ?? false);
@@ -532,152 +564,167 @@ function getPriceText(item) {
     return ""; // 기타 예외처리
   }
 }
+
+//인피니티 스크롤
+const propertyListContainer = ref(null);
+
+const onScrollPropertyList = () => {
+  const el = propertyListContainer.value;
+  if (!el) return;
+
+  const scrollBottom = el.scrollTop + el.clientHeight;
+  if (scrollBottom + 200 >= el.scrollHeight) {
+    fetchPropertyList();
+  }
+};
 </script>
 
 <template>
   <v-container fluid class="pa-0 overflow-x-hidden overflow-y-hidden">
     <v-row no-gutters>
       <!-- 왼쪽 매물 리스트 -->
-      <v-col
-        cols="12"
-        md="4"
-        class="pa-0 mx-0 overflow-y-auto"
-        style="height: calc(100vh - 74px)"
-      >
-        <!-- 리스트 영역 맨 위에 추가 -->
-        <v-col
-          cols="12"
-          class="px-0 overflow-x-hidden"
-          style="
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background-color: white;
-            padding-top: 12px;
-            padding-bottom: 12px;
-          "
+      <v-col cols="12" md="4" class="pa-0 mx-0">
+        <div
+          ref="propertyListContainer"
+          @scroll.passive="onScrollPropertyList"
+          style="height: calc(100vh - 74px); overflow-y: auto"
         >
-          <v-text-field
-            v-model="searchKeyword"
-            placeholder="지역, 제목, 가격 등으로 검색"
-            prepend-inner-icon="mdi-magnify"
-            clearable
-            hide-details
-            density="compact"
-            class="mb-4 w-[95%] mx-auto overflow-x-hidden"
-            variant="outlined"
-          />
-        </v-col>
-
-        <v-row dense v-if="!isLoading && userLocationReady">
+          <!-- 🔹 검색창 (Sticky 처리 유지) -->
           <v-col
             cols="12"
-            v-for="item in properties"
-            :key="item.id"
-            class="mb-4"
+            class="px-0 overflow-x-hidden"
+            style="
+              position: sticky;
+              top: 0;
+              z-index: 10;
+              background-color: white;
+              padding-top: 12px;
+              padding-bottom: 12px;
+            "
           >
-            <v-card
-              class="d-flex hover-card w-[95%] mx-auto overflow-x-hidden"
-              @click="selectItem(item)"
-              style="cursor: pointer; min-height: 120px"
+            <v-text-field
+              v-model="searchKeyword"
+              placeholder="지역, 제목, 가격 등으로 검색"
+              prepend-inner-icon="mdi-magnify"
+              clearable
+              hide-details
+              density="compact"
+              class="mb-4 w-[95%] mx-auto overflow-x-hidden"
               variant="outlined"
-            >
-              <div style="width: 40%; height: 250px; display: flex">
-                <v-img
-                  :src="item.thumbnailUrl"
-                  alt="thumbnailUrl"
-                  cover
-                  style="
-                    width: 100%;
-                    object-fit: cover;
-                    border-top-left-radius: 4px;
-                    border-bottom-left-radius: 4px;
-                  "
-                />
-              </div>
-              <div
-                class="d-flex flex-column justify-center pa-4"
-                style="width: 60%"
-              >
-                <!-- 태그 영역 -->
-                <div
-                  v-if="item.tags && item.tags.length > 0"
-                  class="d-flex flex-wrap"
-                  style="
-                    margin-bottom: 0;
-                    row-gap: 4px; /* 줄바꿈 시 줄 사이 gap 최소화 */
-                    column-gap: 4px; /* 칩 간 좌우 간격 최소화 (gap-2 없애고 수동 적용) */
-                  "
-                >
-                  <v-chip
-                    v-for="(tag, index) in item.tags"
-                    :key="index"
-                    color="deep-orange"
-                    text-color="white"
-                    variant="elevated"
-                    size="small"
-                    class="ma-0"
-                  >
-                    #{{ tag.name }}
-                  </v-chip>
-                </div>
+            />
+          </v-col>
 
-                <h3
-                  class="text-subtitle-1 font-weight-bold mb-1"
-                  style="
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                  "
-                >
-                  {{ item.title }}
-                </h3>
-                <p
-                  class="text-body-2 font-weight-bold mb-1"
-                  style="color: #ff8339"
-                >
-                  {{ getPriceText(item) }}
-                </p>
-                <p
-                  class="text-body-2 font-weight-regular mb-1"
-                  style="color: #757575"
-                >
-                  {{ item.address }}
-                </p>
-                <p class="text-caption text-grey">{{ item.location }}</p>
-                <div class="d-flex align-center mt-2">
-                  <v-avatar size="24" class="mr-2">
-                    <img :src="item.profile" alt="프로필 이미지" />
-                  </v-avatar>
-                  <span class="text-caption text-grey">{{
-                    item.nickname
-                  }}</span>
-                  <v-btn
-                    icon
-                    variant="text"
-                    class="favorite-icon"
-                    @mouseenter="isHovered = true"
-                    @mouseleave="isHovered = false"
-                    :color="item.isFavorite ? 'red' : 'grey'"
-                    @click.stop="toggleFavorite(item)"
-                  >
-                    <v-icon
-                      :color="isFavorite ? 'red' : isHovered ? 'red' : 'red'"
-                      >{{
-                        item.isFavorite ? "mdi-heart" : "mdi-heart-outline"
-                      }}</v-icon
-                    >
-                  </v-btn>
+          <!-- 🔹 매물 리스트 출력 -->
+          <v-row dense v-if="!isLoading && userLocationReady">
+            <v-col
+              cols="12"
+              v-for="item in properties"
+              :key="item.id"
+              class="mb-4"
+            >
+              <v-card
+                class="d-flex hover-card w-[95%] mx-auto overflow-x-hidden"
+                @click="selectItem(item)"
+                style="cursor: pointer; min-height: 120px"
+                variant="outlined"
+              >
+                <div style="width: 40%; height: 250px; display: flex">
+                  <!-- <v-img
+                    :src="item.thumbnailUrl"
+                    alt="thumbnailUrl"
+                    cover
+                    style="
+                      width: 100%;
+                      object-fit: cover;
+                      border-top-left-radius: 4px;
+                      border-bottom-left-radius: 4px;
+                    "
+                  /> -->
                 </div>
-              </div>
-            </v-card>
-          </v-col>
-        </v-row>
-        <v-row dense v-else>
-          <v-col cols="12" class="text-center py-10">
-            <v-progress-circular indeterminate color="primary" />
-          </v-col>
-        </v-row>
+                <div
+                  class="d-flex flex-column justify-center pa-4"
+                  style="width: 60%"
+                >
+                  <!-- 태그 영역 -->
+                  <div
+                    v-if="item.tags && item.tags.length > 0"
+                    class="d-flex flex-wrap"
+                    style="row-gap: 4px; column-gap: 4px"
+                  >
+                    <v-chip
+                      v-for="(tag, index) in item.tags"
+                      :key="index"
+                      color="deep-orange"
+                      text-color="white"
+                      variant="elevated"
+                      size="small"
+                      class="ma-0"
+                    >
+                      #{{ tag.name }}
+                    </v-chip>
+                  </div>
+
+                  <h3
+                    class="text-subtitle-1 font-weight-bold mb-1"
+                    style="
+                      white-space: nowrap;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                    "
+                  >
+                    {{ item.title }}
+                  </h3>
+                  <p
+                    class="text-body-2 font-weight-bold mb-1"
+                    style="color: #ff8339"
+                  >
+                    {{ getPriceText(item) }}
+                  </p>
+                  <p
+                    class="text-body-2 font-weight-regular mb-1"
+                    style="color: #757575"
+                  >
+                    {{ item.address }}
+                  </p>
+                  <p class="text-caption text-grey">{{ item.location }}</p>
+
+                  <div class="d-flex align-center mt-2">
+                    <v-avatar size="24" class="mr-2">
+                      <!-- <img :src="item.profile" alt="프로필 이미지" /> -->
+                    </v-avatar>
+                    <span class="text-caption text-grey">{{
+                      item.nickname
+                    }}</span>
+                    <v-btn
+                      icon
+                      variant="text"
+                      class="favorite-icon"
+                      @mouseenter="isHovered = true"
+                      @mouseleave="isHovered = false"
+                      :color="item.isFavorite ? 'red' : 'grey'"
+                      @click.stop="toggleFavorite(item)"
+                    >
+                      <v-icon
+                        :color="isFavorite ? 'red' : isHovered ? 'red' : 'red'"
+                      >
+                        {{
+                          item.isFavorite ? "mdi-heart" : "mdi-heart-outline"
+                        }}
+                      </v-icon>
+                    </v-btn>
+                  </div>
+                </div>
+              </v-card>
+            </v-col>
+          </v-row>
+
+          <!-- 🔹 로딩 표시 -->
+          <v-row dense v-else>
+            <v-col cols="12" class="text-center py-10">
+              <v-progress-circular indeterminate color="primary" />
+            </v-col>
+          </v-row>
+        </div>
       </v-col>
 
       <!-- 오른쪽 상세 보기 -->
@@ -700,13 +747,13 @@ function getPriceText(item) {
             </v-btn>
 
             <v-carousel height="500">
-              <v-carousel-item
+              <!-- <v-carousel-item
                 v-for="(img, index) in selectedItem.imageUrls"
                 :key="index"
                 :src="img"
                 :alt="img"
                 cover
-              />
+              /> -->
             </v-carousel>
 
             <v-container class="py-8" v-show="!showReservation">

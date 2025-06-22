@@ -9,7 +9,7 @@ const newComment = ref("");
 
 const agents = ref([]);
 const searchKeyword = ref("");
-
+const agentList = ref({});
 const agentMapCenter = ref([37.5665, 126.978]);
 const agentMapLevel = ref(5);
 const agentMapBounds = ref({
@@ -82,15 +82,20 @@ const drawDefaultMap = async (
       neLng: ne.getLng(),
     };
 
-    const response = await useApi("/agents/withinBounds", {
+    const response = await useApi("/agents/markers", {
       method: "GET",
       params: {
         ...agentMapBounds.value,
         keyword: searchKeyword.value || null,
       },
     });
-    agents.value = response.data || [];
 
+    currentPage.value = 1;
+    totalPages.value = 1;
+    agentList.value = [];
+    await fetchAgentList();
+
+    agents.value = response.data || [];
     const markers = agents.value
       .map((agent) => {
         if (!agent.latitude || !agent.longitude) return null;
@@ -282,102 +287,137 @@ const deleteReview = async (reviewId) => {
 
   selectedItem.value.reviews = res.data.agentReviews;
 };
+
+//인피니티 스크롤
+const currentPage = ref(1);
+const totalPages = ref(1);
+const isFetching = ref(false);
+
+const fetchAgentList = async () => {
+  if (isFetching.value || currentPage.value > totalPages.value) return;
+  isFetching.value = true;
+
+  const response = await useApi("/agents/withinBounds", {
+    method: "GET",
+    params: {
+      ...agentMapBounds.value,
+      keyword: searchKeyword.value || null,
+      page: currentPage.value,
+      size: 20,
+    },
+  });
+
+  const agentsFromApi = response.data?.agents ?? [];
+  const total = response.data?.total ?? 1;
+
+  if (currentPage.value === 1) {
+    agentList.value = agentsFromApi;
+  } else {
+    agentList.value.push(...agentsFromApi);
+  }
+
+  totalPages.value = total;
+  currentPage.value++;
+  isFetching.value = false;
+};
+
+const agentListContainer = ref(null);
+
+const onScrollAgentList = () => {
+  const el = agentListContainer.value;
+  if (!el) return;
+
+  const scrollBottom = el.scrollTop + el.clientHeight;
+  if (scrollBottom + 200 >= el.scrollHeight) {
+    fetchAgentList(); // 하단 근접 시 다음 페이지 요청
+  }
+};
 </script>
 
 <template>
   <v-container fluid class="pa-0">
     <v-row no-gutters>
       <!-- 왼쪽 매물 리스트 -->
-      <v-col
-        cols="12"
-        md="4"
-        class="pa-4"
-        style="height: calc(100vh - 64px); overflow-y: auto"
-      >
-        <!-- 리스트 영역 맨 위에 추가 -->
-        <v-col cols="12" class="px-0">
-          <v-text-field
-            v-model="searchKeyword"
-            placeholder="지역, 제목, 가격 등으로 검색"
-            prepend-inner-icon="mdi-magnify"
-            clearable
-            hide-details
-            density="compact"
-            class="mb-4"
-            variant="outlined"
-          />
-        </v-col>
-
-        <v-row dense>
-          <v-col cols="12" v-for="item in agents" :key="item.id" class="mb-4">
-            <v-card
-              class="d-flex hover-card"
-              @click="selectItem(item)"
-              style="cursor: pointer; min-height: 120px"
-            >
-              <div style="width: 40%; height: 250px; display: flex">
-                <v-img
-                  :src="item.thumbnail"
-                  alt="thumbnail"
-                  cover
-                  style="
-                    width: 100%;
-                    object-fit: cover;
-                    border-top-left-radius: 4px;
-                    border-bottom-left-radius: 4px;
-                  "
-                />
-              </div>
-              <div
-                class="d-flex flex-column justify-center pa-4"
-                style="width: 60%"
-              >
-                <!-- 브랜드명 -->
-                <h3
-                  class="text-subtitle-1 font-weight-bold mb-1"
-                  style="
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                  "
-                >
-                  {{ item.brand }}
-                </h3>
-
-                <!-- 리뷰 정보 -->
-                <div class="d-flex align-center mb-1">
-                  <v-icon color="#FFB300" size="16" class="mr-1"
-                    >mdi-star</v-icon
-                  >
-                  <span class="text-body-2">{{
-                    item.reviewAvg?.toFixed(1) ?? "0.0"
-                  }}</span>
-                  <span class="text-caption text-grey ml-2"
-                    >({{ item.reviewCount ?? 0 }}건)</span
-                  >
-                </div>
-
-                <!-- 위치 정보 -->
-                <p
-                  class="text-body-2 font-weight-bold mb-1"
-                  style="color: #ff8339"
-                >
-                  {{ item.location }}
-                </p>
-
-                <!-- 중개인 프로필 -->
-                <div class="d-flex align-center mt-2">
-                  <v-avatar size="24" class="mr-2">
-                    <img :src="item.profileUrl" alt="프로필 이미지" />
-                  </v-avatar>
-                  <span class="text-caption text-grey" v-if="item.name">{{
-                    item.name
-                  }}</span>
-                </div>
-              </div>
-            </v-card>
+      <v-col cols="12" md="4" class="pa-4">
+        <div
+          ref="agentListContainer"
+          @scroll.passive="onScrollAgentList"
+          style="height: calc(100vh - 64px); overflow-y: auto"
+        >
+          <!-- 리스트 영역 맨 위에 추가 -->
+          <v-col cols="12" class="px-0">
+            <v-text-field
+              v-model="searchKeyword"
+              placeholder="지역, 제목, 가격 등으로 검색"
+              prepend-inner-icon="mdi-magnify"
+              clearable
+              hide-details
+              density="compact"
+              class="mb-4"
+              variant="outlined"
+            />
           </v-col>
-        </v-row>
+
+          <v-row dense>
+            <v-col
+              cols="12"
+              v-for="item in agentList"
+              :key="item.id"
+              class="mb-4"
+            >
+              <v-card
+                class="d-flex hover-card"
+                @click="selectItem(item)"
+                style="cursor: pointer; min-height: 120px"
+              >
+                <div style="width: 40%; height: 250px; display: flex">
+                  <!-- 썸네일 이미지 -->
+                </div>
+                <div
+                  class="d-flex flex-column justify-center pa-4"
+                  style="width: 60%"
+                >
+                  <h3
+                    class="text-subtitle-1 font-weight-bold mb-1"
+                    style="
+                      white-space: nowrap;
+                      overflow: hidden;
+                      text-overflow: ellipsis;
+                    "
+                  >
+                    {{ item.brand }}
+                  </h3>
+
+                  <div class="d-flex align-center mb-1">
+                    <v-icon color="#FFB300" size="16" class="mr-1"
+                      >mdi-star</v-icon
+                    >
+                    <span class="text-body-2">
+                      {{ item.reviewAvg?.toFixed(1) ?? "0.0" }}
+                    </span>
+                    <span class="text-caption text-grey ml-2">
+                      ({{ item.reviewCount ?? 0 }}건)
+                    </span>
+                  </div>
+
+                  <p
+                    class="text-body-2 font-weight-bold mb-1"
+                    style="color: #ff8339"
+                  >
+                    {{ item.location }}
+                  </p>
+
+                  <div class="d-flex align-center mt-2">
+                    <v-avatar size="24" class="mr-2" />
+                    <span class="text-caption text-grey" v-if="item.name">
+                      {{ item.name }}
+                    </span>
+                  </div>
+                </div>
+              </v-card>
+            </v-col>
+          </v-row>
+        </div>
       </v-col>
 
       <!-- 오른쪽 상세 보기 -->
@@ -398,7 +438,7 @@ const deleteReview = async (reviewId) => {
             >
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
-
+            <!-- 
             <v-img
               :src="selectedItem.profileUrl"
               alt="thumbnail"
@@ -410,7 +450,7 @@ const deleteReview = async (reviewId) => {
                 border-top-left-radius: 4px;
                 border-bottom-left-radius: 4px;
               "
-            />
+            /> -->
             <v-container class="py-8">
               <v-row justify="center" class="text-center mb-8">
                 <v-col cols="12" md="8">
@@ -494,12 +534,12 @@ const deleteReview = async (reviewId) => {
                               md="4"
                             >
                               <v-card>
-                                <v-img
+                                <!-- <v-img
                                   :src="property.thumbnailUrl"
                                   height="160px"
                                   cover
                                   class="rounded-t"
-                                />
+                                /> -->
                                 <v-card-title
                                   class="text-subtitle-1 font-weight-bold"
                                 >
@@ -578,7 +618,7 @@ const deleteReview = async (reviewId) => {
                                 <!-- 아바타 -->
                                 <v-col cols="auto" class="mr-3">
                                   <v-avatar size="40">
-                                    <img :src="review.profile" alt="profile" />
+                                    <!-- <img :src="review.profile" alt="profile" /> -->
                                   </v-avatar>
                                 </v-col>
 
