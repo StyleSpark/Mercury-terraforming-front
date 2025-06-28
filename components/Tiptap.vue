@@ -41,7 +41,9 @@ onMounted(() => {
     ],
     content: "<p>여기에 글을 작성하세요 ✏️</p>",
     onUpdate({ editor }) {
-      model.value = editor.getHTML();
+      const raw = editor.getHTML();
+      const clean = useSanitizeHtml(raw);
+      model.value = clean;
     },
   });
 });
