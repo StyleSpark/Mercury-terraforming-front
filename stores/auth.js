@@ -6,7 +6,7 @@ export const useAuthStore = defineStore('auth', {
     user: null,
   }),
   actions: {
-    setToken(token) {
+    setAccessToken(token) {
       this.accessToken = token
       localStorage.setItem('access_token', token) // 저장 추가
     },

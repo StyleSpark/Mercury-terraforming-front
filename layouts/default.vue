@@ -20,7 +20,7 @@
       <div class="d-flex align-center">
         <!-- 로그인 버튼 -->
         <v-btn
-          v-if="!auth.isLoggedIn"
+          v-if="!auth.isLoggedIn && route.path !== '/signup'"
           class="pe-2 me-2"
           prepend-icon="mdi-login"
           variant="flat"
@@ -28,7 +28,7 @@
         >
           <div class="text-none font-weight-regular">로그인</div>
 
-          <v-dialog activator="parent" v-model="loginDialog" max-width="500">
+          <v-dialog activator="parent" v-model="loginDialog" max-width="500" transition="false" overlay-transition="false">
             <template v-slot:default>
               <v-card rounded="lg">
                 <v-card-title class="d-flex justify-space-between align-center">
@@ -40,7 +40,7 @@
                 <v-card-text>
                   <v-form ref="formRef" v-model="valid">
                     <v-text-field v-model="email" label="이메일" :rules="[required]" variant="outlined" class="mb-2" density="compact" />
-                    <v-text-field v-model="password" label="비밀번호" type="password" :rules="[required]" variant="outlined" density="compact" />
+                    <v-text-field v-model="password" label="비밀번호" type="password" :rules="[required]" variant="outlined" density="compact"  @keydown.enter="handleLogin"/>
                     <v-btn size="large" class="w-100 mt-2" variant="outlined" @click="handleLogin">로그인</v-btn>
                   </v-form>
 
@@ -159,7 +159,7 @@ const handleLogin = async () => {
 
   if (response?.accessToken) {
     localStorage.setItem("access_token", response.accessToken)
-    auth.setToken(response.accessToken)
+    auth.setAccessToken(response.accessToken)
     loginDialog.value = false
     
     const res = await useApi("/auth/my-page"); // 유저 정보

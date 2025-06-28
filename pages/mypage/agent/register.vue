@@ -81,7 +81,6 @@
         <v-row dense class="mb-4">
           <v-col cols="12">
             <v-textarea
-              v-model="bio"
               label="중개사 소개"
               rows="4"
               variant="outlined"
@@ -166,6 +165,10 @@ const profileFile = ref([]);
 const profilePreview = ref("");
 
 const { address, zonecode, latitude, longitude, openPostcode } = usePostcode();
+
+definePageMeta({
+  middleware: 'deny-agent-access'
+})
 
 const rules = {
   required: (v) => !!v || "필수 입력 항목입니다.",

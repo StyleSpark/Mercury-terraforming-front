@@ -1,14 +1,8 @@
 <template>
   <MypageLayoutWrapper>
-    <!-- 기존 내 정보 카드 그대로 유지 -->
-    <v-card variant="outlined" class="pa-6 mb-6">
-      ... 기존 내 정보 UI ...
-    </v-card>
-
-    <!-- 🔥 구매 내역 카드 추가 -->
     <v-card variant="outlined" class="pa-6">
       <div class="text-h5 mb-5">구매 내역</div>
-
+<!-- 
       <v-data-table
         :headers="orderHeaders"
         :items="orders"
@@ -23,7 +17,7 @@
         <template #item.createdAt="{ item }">
           {{ formatDate(item.createdAt) }}
         </template>
-      </v-data-table>
+      </v-data-table> -->
     </v-card>
 
     <Toast
@@ -62,12 +56,12 @@ const formatCurrency = (amount) => {
 
 // 구매 내역 조회 API 호출
 const fetchOrders = async () => {
-  try {
-    const response = await useApi('/orders', { method: 'GET' })
-    orders.value = response
-  } catch (e) {
-    console.error('구매 내역 조회 실패', e)
-  }
+  // try {
+  //   const response = await useApi('/orders', { method: 'GET' })
+  //   orders.value = response
+  // } catch (e) {
+  //   console.error('구매 내역 조회 실패', e)
+  // }
 }
 
 // 페이지 진입 시 구매내역 조회

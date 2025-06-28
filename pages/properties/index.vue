@@ -445,6 +445,13 @@ async function fetchPropertiesNearby() {
 const mapCenter = ref(null);
 
 onMounted(async () => {
+    if (window.kakao && window.kakao.maps) {
+    kakao.maps.load(async () => {
+      userLocationReady.value = true;
+      await fetchPropertiesNearby(); 
+      isLoading.value = false;
+    });
+  }
   if (navigator.geolocation) {
     await new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(

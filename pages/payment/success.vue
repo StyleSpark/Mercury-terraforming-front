@@ -2,33 +2,35 @@
 const route = useRoute()
 
 onMounted(async () => {
-  const { paymentKey, orderId, amount, type } = route.query;
+  const { paymentKey, orderId, amount, type, token } = route.query
 
-  if (!paymentKey || !orderId || !amount || !type) {
-    console.error('결제 정보 누락');
-    return;
+  if (!paymentKey || !orderId || !amount || !type || !token) {
+    console.error('결제 정보 누락')
+    return navigateTo('/')
   }
 
-  const storageKey = `payment_processed_${orderId}`;
+  const sessionKey = `payment_access_token_${orderId}`
+  const sessionToken = sessionStorage.getItem(sessionKey)
 
-  if (sessionStorage.getItem(storageKey)) {
-    console.log('이미 처리된 결제입니다.');
-    return;
+  if (token !== sessionToken) {
+    console.warn('정상 결제 흐름이 아님. 접근 차단.')
+    return navigateTo('/') // 혹은 에러 페이지
   }
+
+  // 처리 후 삭제
+  sessionStorage.removeItem(sessionKey)
+
+  // 중복 확인도 추가 가능
+  const processedKey = `payment_processed_${orderId}`
+  if (sessionStorage.getItem(processedKey)) return
+  sessionStorage.setItem(processedKey, 'done')
 
   try {
-    let endpoint = '';
+    const endpoint = type === 'reservation'
+      ? '/payments/reservationConfirm'
+      : '/payments/purchaseTicket'
 
-    if (type === 'reservation') {
-      endpoint = '/payments/reservationConfirm';
-    } else if (type.startsWith('T')) {
-      endpoint = '/payments/purchaseTicket';
-    } else {
-      console.error('알 수 없는 결제 유형:', type);
-      return;
-    }
-
-    const response = await useApi(endpoint, {
+    const res = await useApi(endpoint, {
       method: 'POST',
       body: {
         paymentKey,
@@ -36,17 +38,14 @@ onMounted(async () => {
         amount: Number(amount),
         ticketId: type,
       }
-    });
+    })
 
-    console.log('결제 성공 처리 결과:', response);
-
-    // 중복 처리 방지 플래그 저장
-    sessionStorage.setItem(storageKey, 'done');
-
-  } catch (error) {
-    console.error('결제 확인 실패:', error);
+    console.log('결제 완료:', res)
+  } catch (err) {
+    console.error('결제 처리 실패:', err)
   }
-});
+})
+
 
 </script>
 

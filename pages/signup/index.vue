@@ -83,8 +83,6 @@ const rules = {
 
 const submit = async () => {
   if (!valid.value) return
-  alert(JSON.stringify(form.value, null, 2))
-
   const response = await useApi("/auth/signup", {
     method: "POST",
     body: {
@@ -96,7 +94,7 @@ const submit = async () => {
   })
   if (response?.accessToken) {
     localStorage.setItem("access_token", response.accessToken);
-    authStore.setToken(response.accessToken);
+    authStore.setAccessToken(response.accessToken);
     authStore.setUser(response.user);
     // 3. 메인 화면 또는 대시보드 이동
     router.push("/")
