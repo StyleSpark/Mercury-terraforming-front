@@ -12,6 +12,16 @@
       >
         <v-icon size="20">{{ button.icon }}</v-icon>
       </v-btn>
+
+      <!-- 이미지 추가 버튼(히든) -->
+       <input
+        ref="imageInput"
+        type="file"
+        accept="image/*"
+        @change="handleImageSelect"
+        style="display: none"
+      />
+
     </div>
 
     <EditorContent
@@ -28,16 +38,37 @@ import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
 
 const editor = ref(null);
+defineExpose({ editor })
+
 const model = defineModel();
 
+const emit = defineEmits(['update:modelValue', 'insert-image'])
+
+const imageInput = ref(null)
+
+function triggerImageInsert() {
+  imageInput.value?.click()
+}
+
+function handleImageSelect(event) {
+  const file = event.target.files[0]
+  if (file) {
+    emit('insert-image', file)
+  }
+  event.target.value = ''
+}
+
 onMounted(() => {
+  
   editor.value = new Editor({
     extensions: [
       StarterKit,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Link.configure({ openOnClick: false }),
+      Image,
     ],
     content: "<p>여기에 글을 작성하세요 ✏️</p>",
     onUpdate({ editor }) {
@@ -46,6 +77,7 @@ onMounted(() => {
       model.value = clean;
     },
   });
+
 });
 
 onBeforeUnmount(() => {
@@ -145,6 +177,12 @@ const toolbarButtons = [
     command: insertLink,
     activeCheck: "link",
   },
+  {
+    label: '이미지 삽입',
+    icon: 'mdi-image',
+    command: () => triggerImageInsert(),
+    activeCheck: '',
+  }
 ];
 
 const focusEditor = () => {
