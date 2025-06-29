@@ -4,6 +4,8 @@
 <script setup>
 import { useLoginDialogStore } from "@/stores/loginDialog";
 
+import { useSupercluster, getClusters } from "@/composables/useSupercluster";
+
 const loginDialogStore = useLoginDialogStore();
 const auth = useAuthStore();
 const selectedItem = ref(null);
@@ -162,7 +164,7 @@ function drawDetailMap(property) {
     window.detailMapVisibleMarker.setMap(null);
   }
 
-  // 클러스터 유지 여부는 선택 → 원하면 제거 가능
+  // 클러스터
   const transparentMarker = new kakao.maps.Marker({
     position,
   });
@@ -179,22 +181,18 @@ function drawDetailMap(property) {
 
   window.detailMapClusterer = clusterer;
 
-  // visibleMarker 추가 부분
+  //  visibleMarker 추가 부분
   const visibleMarker = new kakao.maps.Marker({
     position,
   });
 
-  // visibleMarker는 map에 직접 추가
+  //  visibleMarker는 map에 직접 추가
   visibleMarker.setMap(map);
 
   // 전역으로 visibleMarker 저장
   window.detailMapVisibleMarker = visibleMarker;
 }
 
-// const mapCenter = ref([
-//   userLocation.value.latitude,
-//   userLocation.value.longitude,
-// ]);
 const mapLevel = ref(5);
 const currentPage = ref(1);
 const totalPages = ref(1);
@@ -260,60 +258,60 @@ async function drawListMap() {
     }
 
     // 마커 배열
-    const markers = response.data
-      .map((item) => {
-        const { latitude, longitude } = item;
-        if (!latitude || !longitude) return null;
-        const position = new kakao.maps.LatLng(latitude, longitude);
-        return new kakao.maps.Marker({
-          position,
-          image: new kakao.maps.MarkerImage(
-            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-            new kakao.maps.Size(1, 1),
-            { offset: new kakao.maps.Point(0, 0) }
-          ),
-        });
-      })
-      .filter(Boolean);
+    const markerData = response.data ?? [];
+    useSupercluster(markerData); // ← 클러스터 인덱스 생성
 
-    // 클러스터 새로 생성
-    const clusterer = new kakao.maps.MarkerClusterer({
-      map: map,
-      averageCenter: true,
-      minLevel: 0,
-      disableClickZoom: true,
-      calculator: [1, 5, 10, 30, 50],
-      minClusterSize: 1,
-      renderer: {
-        createClusterMarker: function (cluster) {
-          const count = cluster.getSize();
-          const position = cluster.getCenter();
-          const content = `
-            <div style="
-              width: 40px;
-              height: 40px;
-              background: rgba(255, 102, 102, 0.8);
-              border-radius: 20px;
-              color: #fff;
-              text-align: center;
-              line-height: 40px;
-              font-weight: bold;
-              font-size: 14px;
-              box-shadow: 0 0 6px rgba(0,0,0,0.3);
-            ">${count}</div>
-          `;
-          return new kakao.maps.CustomOverlay({
-            position: position,
-            content: content,
-            yAnchor: 0.5,
-            zIndex: 10,
-          });
-        },
-      },
+    const bbox = [sw.getLng(), sw.getLat(), ne.getLng(), ne.getLat()];
+    const zoom = 18 - map.getLevel(); // 카카오 줌 → Supercluster 줌
+
+    // 클러스터 데이터 가져오기
+    const clusters = getClusters(bbox, zoom);
+
+    // 이전 클러스터 제거
+    window.superclusterOverlays?.forEach((o) => o.setMap(null));
+    window.superclusterOverlays = [];
+
+    // 클러스터/마커 그리기
+    clusters.forEach((cluster) => {
+      const coords = cluster.geometry?.coordinates;
+      if (!coords || coords.length < 2) {
+        console.warn("Invalid cluster coordinate:", cluster);
+        return; // skip
+      }
+
+      const [lng, lat] = coords;
+      const position = new kakao.maps.LatLng(lat, lng);
+
+      const count = cluster.properties.cluster
+        ? cluster.properties.point_count
+        : 1;
+
+      const el = document.createElement("div");
+      el.className = "cluster";
+      el.innerText = count.toString();
+
+      // ❗ 반드시 있어야 클릭됨
+      el.style.pointerEvents = "auto";
+      el.style.cursor = "pointer";
+
+      // 테스트 로그
+      el.addEventListener("click", () => {
+        console.log("✅ 클러스터 클릭됨");
+        if (cluster.properties.cluster) {
+          map.setLevel(map.getLevel() - 1, { anchor: position });
+        }
+      });
+
+      const overlay = new kakao.maps.CustomOverlay({
+        position,
+        content: el,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+      });
+
+      overlay.setMap(map);
+      window.superclusterOverlays.push(overlay);
     });
-
-    clusterer.addMarkers(markers);
-    window.propertyClusterer = clusterer;
   });
 
   // (7) idle 이벤트 강제 트리거 (초기 마운트/복귀 시 데이터 즉시 로딩)
@@ -445,10 +443,10 @@ async function fetchPropertiesNearby() {
 const mapCenter = ref(null);
 
 onMounted(async () => {
-    if (window.kakao && window.kakao.maps) {
+  if (window.kakao && window.kakao.maps) {
     kakao.maps.load(async () => {
       userLocationReady.value = true;
-      await fetchPropertiesNearby(); 
+      await fetchPropertiesNearby();
       isLoading.value = false;
     });
   }
@@ -1082,5 +1080,21 @@ div .v-picker-title {
   border-radius: 8px;
   background-color: transparent;
   transition: background-color 0.2s ease;
+}
+</style>
+<style>
+.cluster {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 102, 102, 0.85);
+  border-radius: 20px;
+  color: white;
+  font-size: 14px;
+  line-height: 40px;
+  text-align: center;
+  font-weight: bold;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  cursor: pointer;
 }
 </style>

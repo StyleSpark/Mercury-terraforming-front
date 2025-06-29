@@ -56,6 +56,13 @@ const drawDetailMap = async () => {
 
 const lastMapCenter = ref([37.5665, 126.978]);
 const lastMapLevel = ref(5);
+const overlays = []; // 전역 또는 setup 밖에 선언
+
+function removeAllOverlays() {
+  overlays.forEach((o) => o.setMap(null));
+  overlays.length = 0;
+}
+
 const drawDefaultMap = async (
   center = agentMapCenter.value,
   level = agentMapLevel.value
@@ -82,6 +89,7 @@ const drawDefaultMap = async (
       neLng: ne.getLng(),
     };
 
+    // 📍 서버로부터 해당 bounds 내 에이전트 요청
     const response = await useApi("/agents/markers", {
       method: "GET",
       params: {
@@ -96,70 +104,74 @@ const drawDefaultMap = async (
     await fetchAgentList();
 
     agents.value = response.data || [];
-    const markers = agents.value
-      .map((agent) => {
-        if (!agent.latitude || !agent.longitude) return null;
-        const position = new kakao.maps.LatLng(agent.latitude, agent.longitude);
-        return new kakao.maps.Marker({
-          position,
-          clickable: true,
-          image: new kakao.maps.MarkerImage(
-            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-            new kakao.maps.Size(1, 1),
-            { offset: new kakao.maps.Point(0, 0) }
-          ),
-        });
-      })
-      .filter(Boolean);
 
-    const clusterer = new kakao.maps.MarkerClusterer({
-      map: map,
-      averageCenter: true,
-      minLevel: 1,
-      disableClickZoom: true,
-      calculator: [1, 5, 10, 30, 50],
-      minClusterSize: 1,
-      renderer: {
-        createClusterMarker: function (cluster) {
-          const count = cluster.getSize();
-          const position = cluster.getCenter();
-          const content = `
-            <div style="
-              width: 40px;
-              height: 40px;
-              background: rgba(255, 102, 102, 0.8);
-              border-radius: 20px;
-              color: #fff;
-              text-align: center;
-              line-height: 40px;
-              font-weight: bold;
-              font-size: 14px;
-              box-shadow: 0 0 6px rgba(0,0,0,0.3);
-            ">${count}</div>
-          `;
-          return new kakao.maps.CustomOverlay({
-            position,
-            content,
-            yAnchor: 0.5,
+    // Supercluster 인덱스 갱신
+    useSupercluster(agents.value);
+
+    const zoom = Math.max(1, 18 - map.getLevel()); // tile zoom 계산
+    const bbox = [sw.getLng(), sw.getLat(), ne.getLng(), ne.getLat()];
+    const clusters = getClusters(bbox, zoom);
+
+    // 기존 마커/오버레이 제거
+    removeAllOverlays();
+
+    // 클러스터 및 마커 렌더링
+    clusters.forEach((cluster) => {
+      const [lng, lat] = cluster.geometry.coordinates;
+      const isCluster = cluster.properties.cluster;
+      const count = cluster.properties.point_count || 1;
+
+      const el = document.createElement("div");
+      el.className = "custom-cluster";
+      el.innerText = count;
+
+      el.style.cssText = `
+    width: 40px;
+    height: 40px;
+    background: ${
+      isCluster ? "rgba(255, 102, 102, 0.85)" : "rgba(100, 181, 246, 0.9)"
+    };
+    border-radius: 50%;
+    color: white;
+    text-align: center;
+    line-height: 40px;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 9999;
+  `;
+
+      el.addEventListener("click", () => {
+        if (isCluster) {
+          const targetZoom = Math.min(
+            index.getClusterExpansionZoom(cluster.id),
+            18
+          );
+          map.setLevel(18 - targetZoom, {
+            anchor: new kakao.maps.LatLng(lat, lng),
           });
-        },
-      },
-    });
+        } else {
+          const agentId = cluster.properties.agentId; 
+          const target = agents.value.find((a) => a.id === agentId);
+          if (target) selectItem(target);
+        }
+      });
 
-    clusterer.addMarkers(markers);
-    window.agentClusterer = clusterer;
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(lat, lng),
+        content: el,
+        yAnchor: 0.5,
+      });
+
+      overlay.setMap(map);
+      overlays.push(overlay);
+    });
   };
 
   kakao.maps.event.addListener(map, "idle", updateAgentsByBounds);
   kakao.maps.event.trigger(map, "idle");
 };
-
-onMounted(async () => {
-  if (!selectedItem.value) {
-    await nextTick();
-    drawDefaultMap();
-  }
-});
 
 const rating = ref(0); // 평점
 const selectedPropertyId = ref(null); // 선택한 매물 id, 필요시 선택 UI 추가
@@ -224,6 +236,7 @@ onMounted(async () => {
         console.warn("📍 위치 접근 실패, 기본 위치로 설정:", error);
       }
     }
+
     await nextTick();
     drawDefaultMap();
   }
