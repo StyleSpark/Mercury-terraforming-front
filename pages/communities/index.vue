@@ -29,7 +29,6 @@ const fetchCategories = async () => {
   }
 }
 
-
 const fetchPosts = async () => {
   const params = {
     page: page.value,
@@ -183,6 +182,15 @@ const goToCreate = () => {
         </div>
         <div class="post-reactions">
           💬 댓글 {{ item.commentCount }} · 👍 {{ item.likeCount }} · 👎 {{ item.dislikeCount }}
+          <v-chip
+            v-if="item.isMine"
+            color="red"
+            variant="outlined"
+            size="x-small"
+            class="my-post-chip ms-5"
+          >
+            My Post
+          </v-chip>
         </div>
       </div>
 
