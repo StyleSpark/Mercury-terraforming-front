@@ -16,7 +16,6 @@ const fetchPost = async () => {
   post.value = res.data
 }
 
-
 onMounted(async () => {
   auth.restoreAuth()
   await fetchPost()
@@ -27,6 +26,14 @@ watch(() => auth.isLoggedIn, async (loggedIn) => {
     await fetchPost()  // 로그인 상태에서 게시글 다시 조회 (로그인을 하고 나면 내가 좋아요/싫어요 를 눌렀는지 바로 확인 가능)
   }
 })
+
+function goToEdit() {
+  router.push(`/communities/${postId}/edit`)
+}
+
+function deletePost() {
+  
+}
 </script>
 
 <template>
@@ -70,8 +77,8 @@ watch(() => auth.isLoggedIn, async (loggedIn) => {
 
     <div v-if="post">
       <div class="d-flex justify-end mb-3" v-if="post.isMine">
-        <v-btn color="primary" size="small">수정</v-btn>
-        <v-btn color="error" size="small" class="ml-2">삭제</v-btn>
+        <v-btn color="primary" size="small" @click="goToEdit">수정</v-btn>
+        <v-btn color="error" size="small" class="ml-2" @click="deletePost">삭제</v-btn>
       </div>
     </div>
 
