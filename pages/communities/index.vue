@@ -61,7 +61,7 @@ watch([page, sortOption, searchKeyword], fetchPosts)
 
 const getPlainText = (html) => {
   const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
+  tempDiv.innerHTML = html.replace(/<img[^>]*>/gi, '')
   return tempDiv.textContent || ''
 }
 
