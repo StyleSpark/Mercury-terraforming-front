@@ -11,6 +11,9 @@ const postId = Number(route.params.id)
 
 const post = ref(null)
 
+const isDeleteDialogOpen = ref(false)
+const toastVisible = ref(false)
+
 const fetchPost = async () => {
   const res = await useApi(`/communities/${postId}`)
   post.value = res.data
@@ -32,7 +35,22 @@ function goToEdit() {
 }
 
 function deletePost() {
-  
+  isDeleteDialogOpen.value = true
+}
+
+async function confirmDeletePost() {
+  try {
+    await useApi(`/communities/${postId}`, {
+      method: 'DELETE'
+    })
+    toastVisible.value = true
+    router.push('/communities') // 목록 페이지로 이동
+  } catch (e) {
+    alert('게시글 삭제에 실패했습니다. 다시 시도해주세요.')
+    console.error(e)
+  } finally {
+    isDeleteDialogOpen.value = false
+  }
 }
 </script>
 
@@ -75,12 +93,27 @@ function deletePost() {
       </div>
     </v-sheet>
 
-    <div v-if="post">
-      <div class="d-flex justify-end mb-3" v-if="post.isMine">
-        <v-btn color="primary" size="small" @click="goToEdit">수정</v-btn>
-        <v-btn color="error" size="small" class="ml-2" @click="deletePost">삭제</v-btn>
-      </div>
+    <div v-if="post && post.isMine" class="d-flex justify-end mb-3">
+      <v-btn color="primary" size="small" @click="goToEdit">수정</v-btn>
+      <v-btn color="error" size="small" class="ml-2" @click="deletePost">삭제</v-btn>
     </div>
+
+    <!-- 삭제 확인 다이얼로그 -->
+    <v-dialog v-model="isDeleteDialogOpen" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">게시글을 삭제하시겠습니까?</v-card-title>
+        <v-card-text>삭제된 게시글은 복구할 수 없습니다.</v-card-text>
+        <v-card-actions class="justify-end">
+          <v-btn variant="text" @click="isDeleteDialogOpen = false">취소</v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDeletePost">삭제</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- 삭제 완료 토스트 -->
+    <v-snackbar v-model="toastVisible" color="success" timeout="2000">
+      게시글이 삭제되었습니다.
+    </v-snackbar>
 
   </v-container>
 </template>
